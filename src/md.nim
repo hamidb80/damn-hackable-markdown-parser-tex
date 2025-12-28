@@ -22,6 +22,7 @@ type
     mdbMath
     mdbQuote
     mdbList
+    mdsWikiEmbed # like photos, PDFs, etc ![[...]]
 
     # spans (inline elements)
     mdsText
@@ -34,7 +35,6 @@ type
     mdsLink
     mdsPhoto
     mdsWikilink
-    mdsEmbed # like wiki photos, PDFs, ...
 
     # other
     mdHLine
