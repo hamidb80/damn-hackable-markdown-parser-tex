@@ -1,5 +1,6 @@
 import std/[
   strutils,
+  options,
   os,
 ]
 
@@ -20,7 +21,6 @@ type
     mdbMath
     mdbQuote
     mdbList
-    mdbHLine
 
     # spans (inline elements)
     mdsText
@@ -33,8 +33,11 @@ type
     mdsLink
     mdsPhoto
     mdsWikilink
-    mdsEmbed
+    mdsEmbed # like wiki photos, PDFs, ...
 
+    # other
+    mdHLine
+  
   MdDir = enum
     unknown
     rtl
@@ -55,7 +58,11 @@ type
   SkipWhitespaceReport = object
     counts: array[0 .. 128, int]
 
+# --------------------------------------------
+
 const init = -1
+
+# --------------------------------------------
 
 func xmlRepr(n: MdNode, result: var string) = 
   result.add "<"
@@ -65,7 +72,7 @@ func xmlRepr(n: MdNode, result: var string) =
   for sub in n.children:
     xmlRepr n, result
 
-  result.add "<\\"
+  result.add "</"
   result.add $n.kind
   result.add ">"
 
@@ -73,11 +80,28 @@ func xmlRepr(n: MdNode): string =
   xmlRepr n, result
 
 
-proc nextSpanCandidate = 
-  discard
-
 proc skipWhitespaces(content: string, cursor: int): SkipWhitespaceReport = 
   discard
+
+proc nextSpanCandidate(content: string, cursor: int): int = 
+
+  discard
+
+proc parseMdBlock(content: string, slice: Slice[int]): Option[MdNode] = 
+  # TODO detect indent
+
+  ## detect type of block
+  # if code block
+  # if math block
+  # if table
+  # if quote
+  # if 
+  # if list
+  # if header
+  # else (par) 
+
+  discard nextSpanCandidate(content, slice.a)
+
 
 proc nextBlockCandidate(content: string, cursor: int): Slice[int] =
   var 
@@ -85,7 +109,8 @@ proc nextBlockCandidate(content: string, cursor: int): Slice[int] =
     tail = content.len - 1
 
   if cursor != init:
-    let i = find(content, "\n", head)
+    let r = skipWhitespaces(content, cursor)
+
 
   head .. tail
 
@@ -93,8 +118,10 @@ proc parseMarkdown(content: string): MdNode =
   result = MdNode(kind: mdWrap)
 
   var cursor = init
-  let slice = nextBlockCandidate(content, cursor)
+  let slice  = nextBlockCandidate(content, cursor)
+  let b      = parseMdBlock(content, slice)
 
+ 
 # -----------------------------
 
 when isMainModule:
@@ -107,3 +134,23 @@ when isMainModule:
       
       echo "------------- ", path
       echo xmlRepr doc
+
+
+#[
+separate blocks
+it's not so easy as a simple RegEx 
+since there might be code blocks or math blocks
+
+for each blocks
+find span tokens
+
+the overall picture
+file (document) 
+      consists of block
+                  consists of span
+
+any of them can be nested in arbitraty depth
+the architecture should be simple and extendable
+
+what about lists and nested lists? are they block or span?
+]#
