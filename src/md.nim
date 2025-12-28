@@ -225,9 +225,6 @@ proc skipAtNextLine(content: string, slice: Slice[int]): int =
 
 proc skipAfterParagraphSep(content: string, slice: Slice[int]): int = 
   ## go until double \s+\n\s+\n
-  
-  # XXX there is one exception and that is if there be a list just after the paragraph
-  # XXX or $$ or ``` or ![[ or ---- :(
 
   var newlines = 0
   var i = slice.a
@@ -237,7 +234,8 @@ proc skipAfterParagraphSep(content: string, slice: Slice[int]): int =
     of '\n':                
       inc newlines
       if detectBlockKind(content, i+1) != mdbPar: break
-
+      # XXX there is one exception and that is if there be a list just after the paragraph
+      # XXX or $$ or ``` or ![[ or ---- :(
     of Whitespace - {'\n'}: discard
     elif 2 <= newlines:     break
     else:                   reset newlines
@@ -280,33 +278,35 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
     var b = MdNode(kind: mdbHeader, priority: i-slice.a)
     # TODO now go for inline sub nodes
     # echo 'H' , b.priority, ' ', content[slice]
-    discard
+    b
   
   of mdHLine: 
-    # echo "<hr> " , content[slice]
-    discard
+    MdNode(kind: mdHLine)
   
   of mdbPar: 
+    var b = MdNode(kind: mdbPar)
     # echo "(par) ", content[slice]
     # discard nextSpanCandidate(content, cursor)
-    discard
-  
-  of mdbCode: 
-    # echo "(code) ", content[i..e]
-    # e + len pat
-     discard
-  
-  of mdbTable:
-     discard
+    b
 
   of mdbMath: 
-    discard
+    var b = MdNode(kind: mdbMath)
+    b
   
-  of mdbQuote:
-     discard
+  of mdbCode: 
+    var b = MdNode(kind: mdbCode)
+    b
   
   of mdbList: 
-    discard
+    var b = MdNode(kind: mdbList)
+    b
+  
+  of mdbQuote:
+    var b = MdNode(kind: mdbQuote)
+    b
+  
+  # of mdbTable:
+  #    discard
   
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
@@ -322,11 +322,13 @@ proc parseMarkdown(content: string): MdNode =
     let tail = afterBlock(content, head, kind)
     echo ":: ", kind, ' ', head .. tail, ' ', '[', content[head], ']', ' ', '<', content.substr(head, tail-1), '>'
     if tail - head <= 0: break
-    # let b    = parseMdBlock(content, head .. tail-1, kind)
+    let b    = parseMdBlock(content, head .. tail-1, kind)
     cursor = tail
 
  
 # -----------------------------
+
+# TODO auto link finder (convert normal text -> link)
 
 when isMainModule:
   # echo startsWith("### hello", 0, p"#+\s+")
