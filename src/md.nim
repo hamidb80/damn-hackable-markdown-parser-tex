@@ -120,9 +120,13 @@ proc p(pattern: string): SimplePattern =
       case pattern.at(i)
       of '\\':
         case pattern.at(i+1)
-        of 's': SimplePatternToken(kind: sptMeta, meta: spmWhitespace)
-        else:   raise newException(ValueError, fmt"invalid meta character '{pattern.at(i+1)}'")
-      else:     SimplePatternToken(kind: sptChar, ch: pattern[i])
+        of 's': 
+          inc i
+          SimplePatternToken(kind: sptMeta, meta: spmWhitespace)
+        else:   
+          raise newException(ValueError, fmt"invalid meta character '{pattern.at(i+1)}'")
+      else:     
+          SimplePatternToken(kind: sptChar, ch: pattern[i])
 
     let repeat = 
       case pattern.at(i+1)
@@ -205,7 +209,7 @@ proc parseMarkdown(content: string): MdNode =
 # -----------------------------
 
 when isMainModule:
-  echo p"#+ "
+  echo p"#+\s+"
 
   for (t, path) in walkDir "./tests":
     if t == pcFile: 
