@@ -15,26 +15,28 @@ type
     mdFrontMatter # yaml
 
     # blocks
-    mdbHeader # ###
+    mdbHeader # #+ ...
     mdbPar 
-    mdbTable
     mdbCode # ``` 
     mdbMath # $$
     mdbQuote # > 
     mdbList # + - *
+    mdbTable
 
     # spans (inline elements)
-    mdsText # ...
-    mdsComment # // ...
+    mdsBoldItalic # ***...***
     mdsItalic # *...* _..._
     mdsBold # **...**
     mdsHighlight # ==...==
-    mdsMath # $...$
     mdsCode # `...`
+    mdsMath # $...$
     mdsLink # ![]()
     mdsEmbed # ![]()
     mdsWikilink # [[ ... ]]
+    mdsComment # // ...
     mdsWikiEmbed # like photos, PDFs, etc ![[...]]
+    # mdsTag # #...
+    mdsText # ...
 
     # other
     mdHLine # ---
@@ -285,7 +287,60 @@ proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[i
 
 
 proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
-  discard
+  for k in [
+    mdsBoldItalic,
+    mdsItalic,
+    mdsBold,
+    mdsHighlight,
+    mdsCode,
+    mdsMath,
+    mdsLink,
+    mdsEmbed,
+    mdsWikilink,
+    mdsComment,
+    mdsWikiEmbed,
+    mdsText,
+  ]:
+    case k 
+    of mdsBoldItalic:
+      discard
+
+    of mdsItalic:
+      discard
+
+    of mdsBold:
+      discard
+
+    of mdsHighlight:
+      discard
+
+    of mdsCode:
+      discard
+
+    of mdsMath:
+      discard
+
+    of mdsLink:
+      discard
+
+    of mdsEmbed:
+      discard
+
+    of mdsWikilink:
+      discard
+
+    of mdsComment:
+      discard
+
+    of mdsWikiEmbed:
+      discard
+
+    of mdsText:
+      discard
+
+    else: 
+      discard
+
 
 proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
   let contentslice = stripContent(content, slice, kind)
@@ -296,34 +351,34 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
   of mdHLine: 
     MdNode(kind: mdHLine)
   
+
   of mdbHeader: 
-    var b = MdNode(kind: mdbHeader, priority: contentslice.a-slice.a-1)
-    # TODO now go for inline sub nodes
-    b
+    MdNode(
+      kind: mdbHeader, 
+      priority: skipChar(content, slice, '#') - slice.a,
+      children: parseMdSpans(content, contentslice))
   
   of mdbPar: 
-    var b = MdNode(kind: mdbPar)
-    b
+    MdNode(
+      kind: mdbPar, 
+      children: parseMdSpans(content, contentslice))
+
+  of mdbQuote:
+    MdNode(
+      kind: mdbQuote, 
+      children: parseMdSpans(content, contentslice))
+  
 
   of mdbMath: 
-    var b = MdNode(kind: mdbMath)
-    b
+    MdNode(kind: mdbMath, content: content[contentslice])
   
   of mdbCode: 
     # TODO detect lang (if provided)
-    var b = MdNode(kind: mdbCode)
-    b
-  
+    MdNode(kind: mdbMath, content: content[contentslice])
+
   of mdbList: 
     var b = MdNode(kind: mdbList)
     b
-  
-  of mdbQuote:
-    var b = MdNode(kind: mdbQuote)
-    b
-  
-  # of mdbTable:
-  #    discard
   
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
