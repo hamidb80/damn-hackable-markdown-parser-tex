@@ -443,7 +443,7 @@ proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[i
   of mdbHeader:    stripSlice(content, slice, {'#'} + Whitespace)
   of mdbQuote:     stripSlice(content, slice, {'>'} + Whitespace)
   of mdbPar:       stripSlice(content, slice, Whitespace)
-  of mdWikiEmbed: stripSlice(content, slice, {'!', '[', ']'} + Whitespace)
+  of mdWikiEmbed:  stripSlice(content, slice, {'!', '[', ']'} + Whitespace)
   else: slice
 
 proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], left, right: T) = 
