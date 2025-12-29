@@ -302,15 +302,7 @@ proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], left, rig
   else:            n.next.prev = r
 
 proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], repl: T) = 
-  let r = newDoublyLinkedNode(repl)
-  r.prev = n.prev
-  r.next = n.next
-
-  let h = n == list.head
-  let t = n == list.tail
-
-  if h: list.head = r
-  if t: list.tail = r
+  n.value = repl
 
 proc subtract[int](n, m: Slice[int]): seq[Slice[int]] = 
   # case 1
@@ -333,11 +325,21 @@ proc subtract[int](n, m: Slice[int]): seq[Slice[int]] =
   # m------m
   #         o-o
 
+  # case 5
+  # n------n
+  #          m------m
+  # o------o
+
+  # case 6
+  #          n------n
+  # m------m
+  #          o------o
+
   if n.a < m.a: # start only
-    result.add n.a .. m.a-1
+    result.add n.a .. min(n.b, m.a-1)
   
   if n.b > m.b: # end only
-    result.add m.b+1 .. n.b
+    result.add max(n.a, m.b+1) .. n.b
 
 proc scrabbleMatchDeep(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: string): Option[Slice[int]] =
   var j = 0
@@ -432,10 +434,12 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
         let r = scrabbleMatchDeepMulti(content, indexes, @["`", "`"])
         if isSome r:
           let bounds = r.get
-          indexes.subtract bounds[0].b+1 .. bounds[1].a-1
+          # indexes.subtract bounds[0].b+1 .. bounds[1].a-1
+        break
 
       of mdsMath:
         discard # TODO like above
+        break
         # let r = scrabbleMatchDeepMulti(content, indexes, @["$", "$"])
         # if isSome r:
         #   let bounds = r.get
