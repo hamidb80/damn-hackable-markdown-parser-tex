@@ -1,5 +1,5 @@
 import std/[
-  strutils, strformat,
+  strutils, strformat, re,
   tables,
   options,
   os,
@@ -25,8 +25,8 @@ type
 
     # spans (inline elements)
     mdsBoldItalic # ***...***
-    mdsItalic # *...* _..._
     mdsBold # **...**
+    mdsItalic # *...* _..._
     mdsHighlight # ==...==
     mdsCode # `...`
     mdsMath # $...$
@@ -82,7 +82,7 @@ type
 
 # --------------------------------------------
 
-const init = -1
+const notfound = -1
 
 # --------------------------------------------
 
@@ -288,12 +288,13 @@ proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[i
 
 proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
   for k in [
+    # sorted by priority
+    mdsCode,
+    mdsMath,
     mdsBoldItalic,
     mdsItalic,
     mdsBold,
     mdsHighlight,
-    mdsCode,
-    mdsMath,
     mdsLink,
     mdsEmbed,
     mdsWikilink,
@@ -301,41 +302,48 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
     mdsWikiEmbed,
     mdsText,
   ]:
+    # TODO support escape \
+
+    # should go deep to find text
+
     case k 
     of mdsBoldItalic:
+      # re"***"
       discard
 
-    of mdsItalic:
-      discard
+    # of mdsBold:
+    #   "**" .. "**"
 
-    of mdsBold:
-      discard
+    # of mdsItalic:
+    #   "*" .. "*"
+    #   "_" .. "_"
 
-    of mdsHighlight:
-      discard
+    # of mdsHighlight:
+    #   "==" .. "=="
 
-    of mdsCode:
-      discard
+    # of mdsCode:
+    #   "`" .. "`"
 
-    of mdsMath:
-      discard
+    # of mdsMath:
+    #   "$" .. "$"
 
-    of mdsLink:
-      discard
+    # of mdsWikiEmbed:
+    #   "![[" .. "]]"
 
-    of mdsEmbed:
-      discard
+    # of mdsWikilink:
+    #   "[[" .. "]]"
 
-    of mdsWikilink:
-      discard
+    # of mdsEmbed:
+    #   "![" .. "](" .. ")"
 
-    of mdsComment:
-      discard
+    # of mdsLink:
+    #   "[" .. "](" .. ")"
 
-    of mdsWikiEmbed:
-      discard
+    # of mdsComment:
+    #   "//" .. ""
 
     of mdsText:
+      # TODO detect lang dir
       discard
 
     else: 
