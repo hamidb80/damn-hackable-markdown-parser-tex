@@ -53,6 +53,7 @@ type
     content:  string
 
     # specific
+    numbered: bool   # for list
     dir:      MdDir  # for text
     priority: int    # for header
     lang:     string # for code
@@ -62,6 +63,8 @@ type
 type
   SimplePatternMeta = enum
     spmWhitespace  # \s
+    spmDigit       # \d
+
 
   SimplePatternTokenKind = enum
     sptChar
@@ -158,7 +161,7 @@ func toTex(n: MdNode, result: var string) =
   of mdbCode:
     result.add "\\begin{verbatim}\n"
     result.add n.content
-    result.add "\\end{verbatim}\n"
+    result.add "\n\\end{verbatim}\n"
 
   of mdsBold: 
     result.add "\\textbf{"
@@ -217,11 +220,18 @@ func toTex(n: MdNode, result: var string) =
     discard
 
   of mdbList:
-    result.add "\\begin{itemize}\n"
+    let tag = 
+      if n.numbered: "enumerate"
+      else:          "itemize"
+    result.add "\\begin{"
+    result.add tag
+    result.add "}\n"
     for sub in n.children:
       result.add "\\item "
       toTex sub, result
-    result.add "\n\\end{itemize}"
+    result.add "\n\\end{"
+    result.add tag
+    result.add "}"
 
   of mdbTable, mdsLink, mdbQuote:
     raise newException(ValueError, fmt"toTex for kind {n.kind} is not implemented")
@@ -241,12 +251,11 @@ proc p(pattern: string): SimplePattern =
     let lastToken = 
       case pattern.at(i)
       of '\\':
-        case pattern.at(i+1)
-        of 's': 
-          inc i
-          SimplePatternToken(kind: sptMeta, meta: spmWhitespace)
-        else:   
-          raise newException(ValueError, fmt"invalid meta character '{pattern.at(i+1)}'")
+        inc i
+        case pattern.at(i)
+        of 's':  SimplePatternToken(kind: sptMeta, meta: spmWhitespace)
+        of 'd':  SimplePatternToken(kind: sptMeta, meta: spmDigit)
+        else:    raise newException(ValueError, fmt"invalid meta character '{pattern.at(i+1)}'")
       else:     
           SimplePatternToken(kind: sptChar, ch: pattern[i])
 
@@ -269,6 +278,7 @@ proc matches(ch: char, pt: SimplePatternToken): bool =
   of sptMeta:
     case pt.meta
     of spmWhitespace: ch in Whitespace
+    of spmDigit    : ch in Digits
 
 
 proc find(content: string, slice: Slice[int], sub: string): int = 
@@ -296,7 +306,9 @@ proc skipWhitespaces(content: string, cursor: int): int = # : SkipWhitespaceRepo
       break
   i
 
-proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool = 
+proc startsWith(str: string, cursor: int, pattern: SimplePattern): int = 
+  if str.high < cursor: return notfound
+
   var 
     j = 0      # current pattern
     c = 0      # count
@@ -304,13 +316,16 @@ proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool =
 
   while true:
     if j == pattern.len: # all sub patterns satisfied
-      return true
+      return i
 
     if i >= str.len: 
-      return j == pattern.high and c in pattern[j].repeat
+      # if j == pattern.high and c in pattern[j].repeat:
+      #   return i
+      # else:
+        break
     
     # let cond = matches(str[i], pattern[j].token)
-    # echo (str[i], pattern[j], cond)
+    # echo (i, j, c, str[i], pattern[j], cond)
 
     if matches(str[i], pattern[j].token):
       inc c
@@ -324,16 +339,16 @@ proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool =
         inc j
 
     else:
-      return false
+      return notfound
   
-  true
+  i
 
 proc skipBefore(content: string, cursor: int, pattern: SimplePattern): int = 
   var i  = cursor
   
   while i < content.len:
-    if startsWith(content, i, pattern): return i-1
-    else: inc i
+    if startsWith(content, i, pattern) != notfound: return i-1
+    inc i
   
   raise newException(ValueError, "cannot match end of " & $pattern)
 
@@ -368,17 +383,17 @@ proc skipAtNextLine(content: string, slice: Slice[int]): int =
 
 
 proc detectBlockKind(content: string, cursor: int): MdNodeKind = 
-  if   startsWith(content, cursor, p"```"):  mdbCode
-  elif startsWith(content, cursor, p"$$\s"): mdbMath
-  elif startsWith(content, cursor, p"> "):   mdbQuote
-  elif startsWith(content, cursor, p"#+ "):  mdbHeader
-  elif startsWith(content, cursor, p"---+"): mdHLine
-  elif startsWith(content, cursor, p"![["):  mdWikiEmbed
-  elif startsWith(content, cursor, p"!["):   mdsEmbed
-  elif startsWith(content, cursor, p"- "):   mdbList
-  elif startsWith(content, cursor, p"+ "):   mdbList
-  elif startsWith(content, cursor, p"* "):   mdbList
-  elif startsWith(content, cursor, p"1. "):  mdbList
+  if   startsWith(content, cursor, p"```")   != notfound: mdbCode
+  elif startsWith(content, cursor, p"$$\s")  != notfound: mdbMath
+  elif startsWith(content, cursor, p"> ")    != notfound: mdbQuote
+  elif startsWith(content, cursor, p"#+ ")   != notfound: mdbHeader
+  elif startsWith(content, cursor, p"---+")  != notfound: mdHLine
+  elif startsWith(content, cursor, p"![[")   != notfound: mdWikiEmbed
+  elif startsWith(content, cursor, p"![")    != notfound: mdsEmbed
+  elif startsWith(content, cursor, p"- ")    != notfound or
+       startsWith(content, cursor, p"+ ")    != notfound or
+       startsWith(content, cursor, p"* ")    != notfound or 
+       startsWith(content, cursor, p"\d+. ") != notfound: mdbList
   else: mdbPar
 
 proc skipAfterParagraphSep(content: string, slice: Slice[int], kind: MdNodeKind): int = 
@@ -415,10 +430,6 @@ proc afterBlock(content: string, cursor: int, kind: MdNodeKind): int =
     let i = cursor + len "![["
     let e = skipBefore(content, i, p pat)
     1 + e + len pat
-
-  of mdsEmbed:
-    raise newException(ValueError, "TODO")
-
 
   of mdbCode: 
     let pat = "\n```"
@@ -754,27 +765,32 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
     var b = MdNode(kind: mdbList)
 
     # list indicator
-    let id = content[slice.a .. slice.a + 1]
-    if id notin ["- ", "+ ", "* "]: # TODO add numbered list
-      raise newException(ValueError, fmt"invalid list indicator: '{id}'")
-
-    let idcc = "\n" & id
+    var listId: SimplePattern
+    
+    for i, id in [p"- ", p"+ ", p"* ", p "\\d+. "]:
+      if startsWith(content, slice.a, id) != notfound:
+        listId = id
+        b.numbered = i == 3
+        break
 
     var acc: seq[Slice[int]]
     var i = slice.a
+    var m = notfound
 
     while i in slice:
-      let f = find(content, i .. slice.b, idcc)
-      
-      let j = 
-        case f
+      m = startsWith(content, i, listid)
+      if m == notfound: raise newException(ValueError, "error list")
+
+      let afternl = find(content, i .. slice.b, "\n")
+      let tail = 
+        case afternl
         of notfound: slice.b
-        else:        f
+        else:        afternl
 
-      acc.add (i+idcc.len-1)..(j-1)
+      acc.add m .. tail
 
-      i = j+1
-    
+      i = tail+1
+
     for s in acc:
       b.children.add MdNode(kind: mdbPar,
                             children: parseMdSpans(content, s))
@@ -792,7 +808,6 @@ proc parseMarkdown(content: string): MdNode =
     let head = skipWhitespaces(content, cursor)
     let kind = detectBlockKind(content, head)
     let tail = afterBlock(content, head, kind)
-    # echo (kind, head .. tail, content[head ..< tail])
     if tail - head <= 0: break
     let b    = parseMdBlock(content, head .. tail-1, kind)
     result.children.add b
@@ -831,12 +846,16 @@ proc preprocess(root: sink MdNode): MdNode =
 
 when isMainModule:
   # tests ---------------------------
-  assert     startsWith("### hello", 0, p"#+\s+")
-  assert     startsWith("# hello",   0, p"#+\s+")
-  assert not startsWith("hello",     0, p"#+\s+")
-  assert     startsWith("```py\n wow\n```", 0, p"```")
-  assert     startsWith("-----", 0, p"---+")
-  assert     startsWith("\n$$", 0, p "\n$$")
+  assert 4        == startsWith("### hello", 0, p"#+\s+")
+  assert 2        == startsWith("# hello",   0, p"#+\s+")
+  assert notfound == startsWith("hello",     0, p"#+\s+")
+  assert 3        == startsWith("```py\n wow\n```", 0, p"```")
+  assert 4        == startsWith("\n```", 0, p "\n```")
+  assert 5        == startsWith("-----", 0, p"---+")
+  assert 3        == startsWith("\n$$", 0, p "\n$$")
+  assert 3        == startsWith("4. hi", 0, p "\\d+. ")
+  assert 4        == startsWith("43. hi", 0, p "\\d+. ")
+  assert notfound == startsWith("", 0, p "\\d+. ")
 
 #   const t = "wow how are you man??"
 #   var indexes = toDoublyLinkedList([0..<t.len])

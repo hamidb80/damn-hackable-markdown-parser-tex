@@ -19,16 +19,31 @@ it punishes you for larger weights ( $w_k$ ),
 
 different values for $\lambda$ mean:
 
-- $\simeq0$ no effect
-- $=1$ normal
-- $>1$ significant effect
-- $\infty$ straight line // like X axis at y=mean 
-
 ```py
 def mul(a, b):
   return a * b
 ```
+
 awful code
 $$
 a \gets \sin x = 0.50
 $$
+
+
+my list
+1. a
+2. b
+3. c 
+4. d
+5. e
+6. f
+7. g
+8. h
+9. i
+10. j
+11. k
+
+- $\simeq0$ no effect
+- $=1$ normal
+- $>1$ significant effect
+- $\infty$ straight line // like X axis at y=mean 
