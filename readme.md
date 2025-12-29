@@ -9,7 +9,7 @@ from: https://github.com/miyuchina/mistletoe/issues/257
 we're in 2025, age of AI, 
 and still there is not a single simple markdown *extensible* 
 markdown parser without quirks 
-in any programming language open source.
+in Python or JS.
 
 I hate these *noobie* developers that 
 would say "this requires major blah blah" 
