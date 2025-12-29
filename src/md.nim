@@ -313,8 +313,26 @@ proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], repl: T) 
   if t: list.tail = r
 
 proc subtract[int](n, m: Slice[int]): seq[Slice[int]] = 
-  # XXX for my used case, it is insured that m is in n
+  # case 1
+  # n-----------n
+  #    m----m
+  # o-o      o--o
+
+  # case 2
+  #    n-----n
+  # m----------m
+  #    nothing
   
+  # case 3
+  # n-----n
+  #    m------m
+  # o-o
+
+  # case 4
+  #    n------n
+  # m------m
+  #         o-o
+
   if n.a < m.a: # start only
     result.add n.a .. m.a-1
   
@@ -382,43 +400,55 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
     mdsWikiEmbed,
     mdsText,
   ]:
-    # TODO support escape \
+    # TODO support escape \ in patterns
 
-    proc matchpair(l, r: string): Option[Slice[int]] = 
+    proc matchPairInside(l, r: string): Option[Slice[int]] = 
       let r = scrabbleMatchDeepMulti(content, indexes, @[l, r])
       if isSome r:
         let bounds = r.get
         let span = bounds[0].b+1 .. bounds[1].a-1
         result = some span
       
-    template matchpairflow(l, r): untyped {.dirty.} = 
-      let v = matchpair(l, r)
-      if issome v: echo (k, v.get)
-      else: break
-
     while true:
       case k 
       of mdsBold: 
-        matchpairflow("**", "**")
+        let v = matchPairInside("**", "**")
+        if issome v: echo (k, v.get)
+        else: break
+        
 
       of mdsItalic:
         #  TODO "*" .. "*"
-        matchpairflow("_", "_")
+        let v = matchPairInside("_", "_")
+        if issome v: echo (k, v.get)
+        else: break
 
       of mdsHighlight:
-        matchpairflow("==", "==")
+        let v = matchPairInside("==", "==")
+        if issome v: echo (k, v.get)
+        else: break
 
       of mdsCode:
-        matchpairflow("`", "`")
+        let r = scrabbleMatchDeepMulti(content, indexes, @["`", "`"])
+        if isSome r:
+          let bounds = r.get
+          indexes.subtract bounds[0].b+1 .. bounds[1].a-1
 
       of mdsMath:
-        matchpairflow("$", "$")
+        discard # TODO like above
+        # let r = scrabbleMatchDeepMulti(content, indexes, @["$", "$"])
+        # if isSome r:
+        #   let bounds = r.get
 
       of mdsWikiEmbed:
-        matchpairflow("![[", "]]")
+        let v = matchPairInside("![[", "]]")
+        if issome v: echo (k, v.get)
+        else: break
 
       of mdsWikilink:
-        matchpairflow("[[", "]]")
+        let v = matchPairInside("[[", "]]")
+        if issome v: echo (k, v.get)
+        else: break
 
       # of mdsEmbed:
       #   let r = scrabbleMatchDeepMulti(content, indexes, @["![", "](", ")"])
@@ -449,6 +479,7 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
 
       of mdsText:
         for i in indexes: # all other non matched scrabbles
+          # TODO remove scape characters here
           echo (mdsText, i)
         break
 
