@@ -1,5 +1,7 @@
 dist/
 build/
 
+**/temp/
+
 play.*
 *.exe

@@ -281,11 +281,11 @@ proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool =
     i = cursor # string index
 
   while true:
-    if i >= str.len: 
-      return false
-    
     if j == pattern.len: # all sub patterns satisfied
       return true
+
+    if i >= str.len: 
+      return false
     
     # let cond = matches(str[i], pattern[j].token)
 
@@ -669,7 +669,8 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
     let node = 
       case c.kind
       of MdLeafNodes: 
-        MdNode(kind: c.kind, content: content[c.slice])
+        MdNode(kind: c.kind, 
+               content: content[c.slice])
       else:
         MdNode(kind: c.kind)
 
@@ -747,10 +748,11 @@ proc preprocess(root: sink MdNode): MdNode =
     var i = 0
 
     # move comment just after an image to its description
-    while i < root.children.len - 1:
+    while i < root.children.len:
       newChildren.add root.children[i]
 
-      if root.children[i].kind   == mdsWikiEmbed and 
+      if i < root.children.len - 1 and 
+         root.children[i].kind   == mdsWikiEmbed and 
          root.children[i+1].kind == mdbPar and
          root.children[i+1].children[0].kind == mdsComment:
            root.children[i].children.add root.children[i+1].children[0].children
@@ -770,22 +772,23 @@ proc preprocess(root: sink MdNode): MdNode =
 # TODO auto link finder (convert normal text -> link)
 
 when isMainModule:
+  # tests ---------------------------
   # echo startsWith("### hello", 0, p"#+\s+")
   # echo startsWith("# hello",   0, p"#+\s+")
   # echo startsWith("hello",     0, p"#+\s+")
   # echo startsWith("```py\n wow\n```", 0, p"```")
   # echo startsWith("-----", 0, p"---+")
-  # echo startsWith("", 0, p"```")
+  # echo startsWith("\n$$", 0, p "\n$$")
 
 #   const t = "wow how are you man??"
 #   var indexes = toDoublyLinkedList([0..<t.len])
 #   let res = scrabbleMatchDeep(t, indexes, "are")
 #   echo ':', t[res.get], ':', indexes
 # else:
-  for (t, path) in walkDir "./tests/easy":
+  for (t, path) in walkDir "./tests/temp":
     if t == pcFile: 
   # block: 
-  #     let path = "./tests/easy/play.md"
+      # let path = "./tests/hard/reg.md"
       echo "------------- ", path
 
       let 
@@ -793,9 +796,9 @@ when isMainModule:
         doc     = parseMarkdown content
         newdoc  = preprocess doc
       
-      echo xmlRepr newdoc
-      echo "\n"
-      echo toTex newdoc
+      # echo xmlRepr newdoc
+      writeFile "./play.xml", xmlRepr newdoc
+      writeFile "./play.tex",  toTex   newdoc
 
 #[
 separate blocks
