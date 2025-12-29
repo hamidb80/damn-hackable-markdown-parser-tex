@@ -116,6 +116,7 @@ func xmlRepr(n: MdNode): string =
 
 func toTex(n: MdNode, result: var string) = 
   case n.kind
+
   of mdWrap:
     for sub in n.children:
       toTex sub, result
@@ -155,15 +156,34 @@ func toTex(n: MdNode, result: var string) =
     result.add n.content
     result.add "\\]\n"
 
+  of mdbCode:
+    result.add "\\begin{verbatim}\n"
+    result.add n.content
+    result.add "\\end{verbatim}\n"
+
   of mdsBold: 
     result.add "\\textbf{"
-    result.add n.content
+    for sub in n.children:
+      toTex sub, result
     result.add "}"
 
   of mdsItalic: 
     result.add "\\textit{"
-    result.add n.content
+    for sub in n.children:
+      toTex sub, result
     result.add "}"
+
+  of mdsHighlight: 
+    result.add "\\hl{"
+    for sub in n.children:
+      toTex sub, result
+    result.add "}"
+
+  of mdsComment:
+    result.add "\\begin{small}"
+    for sub in n.children:
+      toTex sub, result
+    result.add "\\end{small}"
 
   of mdsText: 
     result.add n.content
@@ -177,7 +197,14 @@ func toTex(n: MdNode, result: var string) =
   of mdsWikiEmbed: 
     toTex MdNode(kind: mdsItalic, content: n.content), result
 
-  else:
+  of mdsEmbed:
+    # TODO
+    raise newException(ValueError, fmt"TODO")
+
+  of mdFrontMatter:
+    discard
+
+  of mdbList, mdbTable, mdsLink, mdbQuote:
     raise newException(ValueError, fmt"toTex for kind {n.kind} is not implemented")
 
 func toTex(n: MdNode): string = 
@@ -248,7 +275,6 @@ proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool =
       return true
     
     # let cond = matches(str[i], pattern[j].token)
-    # echo ">> ", str[i], ' ', pattern[j], ' ', cond
 
     if matches(str[i], pattern[j].token):
       inc c
@@ -574,7 +600,6 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
       #   if isSome r:
       #     let bounds = r.get
       #     let span = bounds[0].b+1 .. bounds[1].a-1
-      #     echo (k, span)
       #   else:
       #     break
 
@@ -583,7 +608,6 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
       #   if isSome r:
       #     let bounds = r.get
       #     let span = bounds[0].b+1 .. bounds[1].a-1
-      #     echo (k, span)
       #   else:
       #     break
 
@@ -592,14 +616,12 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
       #   if isSome r:
       #     let bounds = r.get
       #     let span = bounds[0].b+1 .. bounds[1].a-1
-      #     echo (k, span)
       #   else:
       #     break
 
       of mdsText:
         for i in indexes: # all other non matched scrabbles
           # TODO remove scape characters here
-          # echo (k, i), " <", content[i], ">"
           acc.add (k, i)
         break
 
@@ -641,7 +663,6 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
 
 proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
   let contentslice = stripContent(content, slice, kind)
-  # echo content[contentslice]
 
   case kind
   
@@ -667,7 +688,7 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
     MdNode(kind: mdbMath, content: content[contentslice])
   
   of mdbCode: 
-    # TODO detect lang (if provided)
+    # TODO detect lang
     MdNode(kind: mdbMath, content: content[contentslice])
 
   of mdbList: 
@@ -685,7 +706,6 @@ proc parseMarkdown(content: string): MdNode =
     let head = skipWhitespaces(content, cursor)
     let kind = detectBlockKind(content, head)
     let tail = afterBlock(content, head, kind)
-    # echo ":: ", kind, ' ', head .. tail, ' ', '[', content[head], ']'
     if tail - head <= 0: break
     let b    = parseMdBlock(content, head .. tail-1, kind)
     result.children.add b
