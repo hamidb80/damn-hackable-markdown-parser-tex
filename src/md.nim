@@ -1,5 +1,6 @@
 import std/[
-  strutils, strformat, re,
+  strutils, strformat, 
+  lists, sequtils,
   tables,
   options,
   os,
@@ -12,31 +13,30 @@ type
     mdWrap # XXX add indent to this
 
     # metadata
-    mdFrontMatter # yaml
+    mdFrontMatter ## yaml
 
     # blocks
-    mdbHeader # #+ ...
+    mdbHeader ## ##+ ...
     mdbPar 
-    mdbCode # ``` 
-    mdbMath # $$
-    mdbQuote # > 
-    mdbList # + - *
+    mdbCode ## ``` 
+    mdbMath ## $$
+    mdbQuote ## > 
+    mdbList ## + - *
     mdbTable
 
     # spans (inline elements)
-    mdsBoldItalic # ***...***
-    mdsBold # **...**
-    mdsItalic # *...* _..._
-    mdsHighlight # ==...==
-    mdsCode # `...`
-    mdsMath # $...$
-    mdsLink # ![]()
-    mdsEmbed # ![]()
-    mdsWikilink # [[ ... ]]
-    mdsComment # // ...
-    mdsWikiEmbed # like photos, PDFs, etc ![[...]]
-    # mdsTag # #...
-    mdsText # ...
+    mdsBold ## **...**
+    mdsItalic ## *...* _..._
+    mdsHighlight ## ==...==
+    mdsCode ## `...`
+    mdsMath ## $...$
+    mdsLink ## ![]()
+    mdsEmbed ## ![]()
+    mdsWikilink ## [[ ... ]]
+    mdsComment ## // ...
+    mdsWikiEmbed ## like photos, PDFs, etc ![[...]]
+    mdsText ## processed text
+    # mdsTag ## #...
 
     # other
     mdHLine # ---
@@ -285,13 +285,85 @@ proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[i
   of mdbPar:    stripSlice(content, slice, Whitespace)
   else: slice
 
+proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], left, right: T) = 
+  var 
+    l = newDoublyLinkedNode(left)
+    r = newDoublyLinkedNode(right)
 
+  l.prev = n.prev
+  r.next = n.next
+  l.next = r
+  r.prev = l
+
+  if isNil n.prev:   list.head = l
+  else:            n.prev.next = l
+
+  if isNil n.next:   list.tail = r
+  else:            n.next.prev = r
+
+proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], repl: T) = 
+  let r = newDoublyLinkedNode(repl)
+  r.prev = n.prev
+  r.next = n.next
+
+  let h = n == list.head
+  let t = n == list.tail
+
+  if h: list.head = r
+  if t: list.tail = r
+
+proc subtract[int](n, m: Slice[int]): seq[Slice[int]] = 
+  # XXX for my used case, it is insured that m is in n
+  
+  if n.a < m.a: # start only
+    result.add n.a .. m.a-1
+  
+  if n.b > m.b: # end only
+    result.add m.b+1 .. n.b
+
+proc scrabbleMatchDeep(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: string): Option[Slice[int]] =
+  var j = 0
+  var n: DoublyLinkedNode[Slice[int]]
+
+  block find:
+    for ni in indexes.nodes:
+      let cindexes = ni.value # consequtive indexes
+      for i in cindexes:
+        if pattern[j] == content[i]:
+          inc j
+          if j == pattern.len: 
+            result = some i-j+1 .. i
+            n = ni
+            break find
+
+        else:
+          reset j
+
+  # no change the indexes
+  if not isNil n:
+    echo '\n', indexes
+
+    let subs = subtract(n.value, result.get)
+    case subs.len
+    of 1: replace(indexes, n, subs[0])
+    of 2: replace(indexes, n, subs[0], subs[1])
+    else: raise newException(ValueError, "invalid subs")
+
+    echo (subs, n.value, result.get)
+    echo indexes
+    echo "...................."
+
+
+      
 proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
+  # XXX leaf be linked list of indices of content :: linkedlist slice
+  # the pattern must be consequtive
+  var indexes = toDoublyLinkedList([slice])
+
   for k in [
     # sorted by priority
     mdsCode,
     mdsMath,
-    mdsBoldItalic,
     mdsItalic,
     mdsBold,
     mdsHighlight,
@@ -305,50 +377,66 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
     # TODO support escape \
 
     # should go deep to find text
+ 
+    while true:
+      case k 
+      of mdsBold:
+        # re"***"
+        # TODO try not to modify indexes in the function
+        let head = scrabbleMatchDeep(content, indexes, "**")
+        if isSome head:
+          let tail = scrabbleMatchDeep(content, indexes, "**")
+          if issome tail: 
+            echo "congrats !!"
+            for i in indexes:
+              stdout.write $i
+              stdout.write " '"
+              stdout.write content[i]
+              stdout.write "', "
 
-    case k 
-    of mdsBoldItalic:
-      # re"***"
-      discard
+            quit() # XXX remove
+  
+          else:
+            raise newException(ValueError, "invalid syntax")
+        else:
+          break
 
-    # of mdsBold:
-    #   "**" .. "**"
+      # of mdsItalic:
+      #   "*" .. "*"
+      #   "_" .. "_"
 
-    # of mdsItalic:
-    #   "*" .. "*"
-    #   "_" .. "_"
+      # of mdsHighlight:
+      #   "==" .. "=="
 
-    # of mdsHighlight:
-    #   "==" .. "=="
+      # of mdsCode:
+      #   "`" .. "`"
 
-    # of mdsCode:
-    #   "`" .. "`"
+      # of mdsMath:
+      #   "$" .. "$"
 
-    # of mdsMath:
-    #   "$" .. "$"
+      # of mdsWikiEmbed:
+      #   "![[" .. "]]"
 
-    # of mdsWikiEmbed:
-    #   "![[" .. "]]"
+      # of mdsWikilink:
+      #   "[[" .. "]]"
 
-    # of mdsWikilink:
-    #   "[[" .. "]]"
+      # of mdsEmbed:
+      #   "![" .. "](" .. ")"
 
-    # of mdsEmbed:
-    #   "![" .. "](" .. ")"
+      # of mdsLink:
+      #   "[" .. "](" .. ")"
 
-    # of mdsLink:
-    #   "[" .. "](" .. ")"
+      # of mdsComment:
+      #   "//" .. "\n"
 
-    # of mdsComment:
-    #   "//" .. ""
+      # of mdsText:
+      #   # TODO detect lang dir
+      #   discard
 
-    of mdsText:
-      # TODO detect lang dir
-      discard
+      else: 
+        break
 
-    else: 
-      discard
-
+  # aggregate
 
 proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
   let contentslice = stripContent(content, slice, kind)
@@ -361,20 +449,17 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
   
 
   of mdbHeader: 
-    MdNode(
-      kind: mdbHeader, 
-      priority: skipChar(content, slice, '#') - slice.a,
-      children: parseMdSpans(content, contentslice))
+    MdNode(kind: mdbHeader, 
+           priority: skipChar(content, slice, '#') - slice.a,
+           children: parseMdSpans(content, contentslice))
   
   of mdbPar: 
-    MdNode(
-      kind: mdbPar, 
-      children: parseMdSpans(content, contentslice))
+    MdNode(kind: mdbPar, 
+           children: parseMdSpans(content, contentslice))
 
   of mdbQuote:
-    MdNode(
-      kind: mdbQuote, 
-      children: parseMdSpans(content, contentslice))
+    MdNode(kind: mdbQuote, 
+           children: parseMdSpans(content, contentslice))
   
 
   of mdbMath: 
@@ -417,8 +502,12 @@ when isMainModule:
   # echo startsWith("```py\n wow\n```", 0, p"```")
   # echo startsWith("-----", 0, p"---+")
   # echo startsWith("", 0, p"```")
-# else:
 
+#   const t = "wow how are you man??"
+#   var indexes = toDoublyLinkedList([0..<t.len])
+#   let res = scrabbleMatchDeep(t, indexes, "are")
+#   echo ':', t[res.get], ':', indexes
+# else:
   for (t, path) in walkDir "./tests/easy":
     if t == pcFile: 
       echo "------------- ", path
