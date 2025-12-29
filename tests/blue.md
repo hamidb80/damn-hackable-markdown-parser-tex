@@ -24,3 +24,11 @@ different values for $\lambda$ mean:
 - $>1$ significant effect
 - $\infty$ straight line // like X axis at y=mean 
 
+```py
+def mul(a, b):
+  return a * b
+```
+awful code
+$$
+a \gets \sin x = 0.50
+$$
