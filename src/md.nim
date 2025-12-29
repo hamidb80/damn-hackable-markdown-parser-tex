@@ -443,19 +443,24 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
         if isSome r:
           let bounds = r.get
           let area = bounds[0].b+1 .. bounds[1].a-1
+          echo (k, area), " `", content[area], "`"
           for ni in indexes.nodes:
             if ni.value.intersects area:
-              # echo "REMOVED ", (ni.value, area)
               indexes.substract ni, area
-          # indexes.subtract 
-        break
+        else:
+          break
 
       of mdsMath:
-        discard # TODO like above
-        break
-        # let r = scrabbleMatchDeepMulti(content, indexes, @["$", "$"])
-        # if isSome r:
-        #   let bounds = r.get
+        let r = scrabbleMatchDeepMulti(content, indexes, @["$", "$"])
+        if isSome r:
+          let bounds = r.get
+          let area = bounds[0].b+1 .. bounds[1].a-1
+          echo (k, area), " $", content[area], "$"
+          for ni in indexes.nodes:
+            if ni.value.intersects area:
+              indexes.substract ni, area
+        else:
+          break
 
       of mdsWikiEmbed:
         let v = matchPairInside("![[", "]]")
