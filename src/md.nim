@@ -100,18 +100,6 @@ func xmlRepr(n: MdNode): string =
   xmlRepr n, result
 
 
-proc skipWhitespaces(content: string, cursor: int): int = # : SkipWhitespaceReport = 
-  var i = cursor
-  while i < content.len:
-    if content[i] in Whitespace:
-      inc i
-    else:
-      break
-  i
-
-proc nextSpanCandidate(content: string, cursor: int): int = 
-  discard
-
 func at(str: string, index: int): char = 
   if index in str.low .. str.high: str[index]
   else:                            '\0'
@@ -153,6 +141,15 @@ proc matches(ch: char, pt: SimplePatternToken): bool =
     of spmWhitespace: ch in Whitespace
 
 
+proc skipWhitespaces(content: string, cursor: int): int = # : SkipWhitespaceReport = 
+  var i = cursor
+  while i < content.len:
+    if content[i] in Whitespace:
+      inc i
+    else:
+      break
+  i
+
 proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool = 
   var 
     j = 0      # current pattern
@@ -185,15 +182,6 @@ proc startsWith(str: string, cursor: int, pattern: SimplePattern): bool =
   
   true
 
-proc detectBlockKind(content: string, cursor: int): MdNodeKind = 
-  if   startsWith(content, cursor, p"```"): mdbCode
-  elif startsWith(content, cursor, p"$$\s" ): mdbMath
-  elif startsWith(content, cursor, p"> "   ): mdbQuote
-  elif startsWith(content, cursor, p"#+ "  ): mdbHeader
-  elif startsWith(content, cursor, p"---+" ): mdHLine
-  # TODO add list and embed
-  else: mdbPar
-
 proc skipBefore(content: string, cursor: int, pattern: SimplePattern): int = 
   var i  = cursor
   
@@ -202,6 +190,15 @@ proc skipBefore(content: string, cursor: int, pattern: SimplePattern): int =
     else: inc i
   
   raise newException(ValueError, "cannot match end of " & $pattern)
+
+proc stripSlice(content: string, slice: Slice[int], chars: set[char]): Slice[int] = 
+  var i = slice.a
+  var j = slice.b
+
+  while content[i] in chars: inc i
+  while content[j] in chars: dec j
+  
+  i .. j
 
 proc skipChars(content: string, slice: Slice[int], chars: set[char]): int = 
   var i = slice.a
@@ -223,6 +220,16 @@ proc skipNotChar(content: string, slice: Slice[int], ch: char): int =
 proc skipAtNextLine(content: string, slice: Slice[int]): int = 
   skipNotChar(content, slice, '\n')
 
+
+proc detectBlockKind(content: string, cursor: int): MdNodeKind = 
+  if   startsWith(content, cursor, p"```"):   mdbCode
+  elif startsWith(content, cursor, p"$$\s" ): mdbMath
+  elif startsWith(content, cursor, p"> "   ): mdbQuote
+  elif startsWith(content, cursor, p"#+ "  ): mdbHeader
+  elif startsWith(content, cursor, p"---+" ): mdHLine
+  # TODO add list and embed
+  else: mdbPar
+
 proc skipAfterParagraphSep(content: string, slice: Slice[int]): int = 
   ## go until double \s+\n\s+\n
 
@@ -233,9 +240,8 @@ proc skipAfterParagraphSep(content: string, slice: Slice[int]): int =
     case content[i]
     of '\n':                
       inc newlines
-      if detectBlockKind(content, i+1) != mdbPar: break
-      # XXX there is one exception and that is if there be a list just after the paragraph
-      # XXX or $$ or ``` or ![[ or ---- :(
+      if detectBlockKind(content, i+1) != mdbPar: break # there is one exception and that is if there be a list just after the paragraph or $$ or ``` or ![[ or ---- :(
+
     of Whitespace - {'\n'}: discard
     elif 2 <= newlines:     break
     else:                   reset newlines
@@ -268,20 +274,30 @@ proc afterBlock(content: string, cursor: int, kind: MdNodeKind): int =
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
 
+proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[int] = 
+  case kind
+  of mdbMath:   stripSlice(content, slice, {'$', ' ', '\t', '\n', '\r'})
+  of mdbCode:   stripSlice(content, slice, {'`', ' ', '\t', '\n', '\r'})
+  of mdbHeader: skipChars(content, slice, {'#', ' '}) .. slice.b
+  else: slice  
 
-#  TODO detect indent
+
+proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
+  discard
 
 proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
+  let contentslice = stripContent(content, slice, kind)
+
   case kind
-  of mdbHeader: 
-    let i = skipChar(content, slice, '#')
-    var b = MdNode(kind: mdbHeader, priority: i-slice.a)
-    # TODO now go for inline sub nodes
-    # echo 'H' , b.priority, ' ', content[slice]
-    b
   
   of mdHLine: 
     MdNode(kind: mdHLine)
+  
+  of mdbHeader: 
+    var b = MdNode(kind: mdbHeader, priority: contentslice.a-slice.a)
+    # TODO now go for inline sub nodes
+    # echo 'H' , b.priority, ' ', content[slice]
+    b
   
   of mdbPar: 
     var b = MdNode(kind: mdbPar)
@@ -294,6 +310,7 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
     b
   
   of mdbCode: 
+    # TODO detect lang (if provided)
     var b = MdNode(kind: mdbCode)
     b
   
@@ -310,7 +327,6 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
   
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
-
 
 proc parseMarkdown(content: string): MdNode = 
   result = MdNode(kind: mdWrap)
@@ -329,6 +345,7 @@ proc parseMarkdown(content: string): MdNode =
 # -----------------------------
 
 # TODO auto link finder (convert normal text -> link)
+#  TODO detect indent
 
 when isMainModule:
   # echo startsWith("### hello", 0, p"#+\s+")
@@ -339,7 +356,7 @@ when isMainModule:
   # echo startsWith("", 0, p"```")
 # else:
 
-  for (t, path) in walkDir "./tests/hard":
+  for (t, path) in walkDir "./tests/easy":
     if t == pcFile: 
       echo "------------- ", path
 
