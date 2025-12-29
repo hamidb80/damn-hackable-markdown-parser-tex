@@ -276,10 +276,12 @@ proc afterBlock(content: string, cursor: int, kind: MdNodeKind): int =
 
 proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[int] = 
   case kind
-  of mdbMath:   stripSlice(content, slice, {'$', ' ', '\t', '\n', '\r'})
-  of mdbCode:   stripSlice(content, slice, {'`', ' ', '\t', '\n', '\r'})
-  of mdbHeader: skipChars(content, slice, {'#', ' '}) .. slice.b
-  else: slice  
+  of mdbMath:   stripSlice(content, slice, {'$'} + Whitespace)
+  of mdbCode:   stripSlice(content, slice, {'`'} + Whitespace)
+  of mdbHeader: stripSlice(content, slice, {'#'} + Whitespace)
+  of mdbQuote:  stripSlice(content, slice, {'>'} + Whitespace)
+  of mdbPar:    stripSlice(content, slice, Whitespace)
+  else: slice
 
 
 proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
@@ -287,6 +289,7 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
 
 proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
   let contentslice = stripContent(content, slice, kind)
+  echo content[contentslice]
 
   case kind
   
@@ -294,15 +297,12 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
     MdNode(kind: mdHLine)
   
   of mdbHeader: 
-    var b = MdNode(kind: mdbHeader, priority: contentslice.a-slice.a)
+    var b = MdNode(kind: mdbHeader, priority: contentslice.a-slice.a-1)
     # TODO now go for inline sub nodes
-    # echo 'H' , b.priority, ' ', content[slice]
     b
   
   of mdbPar: 
     var b = MdNode(kind: mdbPar)
-    # echo "(par) ", content[slice]
-    # discard nextSpanCandidate(content, cursor)
     b
 
   of mdbMath: 
@@ -336,7 +336,7 @@ proc parseMarkdown(content: string): MdNode =
     let head = skipWhitespaces(content, cursor)
     let kind = detectBlockKind(content, head)
     let tail = afterBlock(content, head, kind)
-    echo ":: ", kind, ' ', head .. tail, ' ', '[', content[head], ']', ' ', '<', content.substr(head, tail-1), '>'
+    echo ":: ", kind, ' ', head .. tail, ' ', '[', content[head], ']'
     if tail - head <= 0: break
     let b    = parseMdBlock(content, head .. tail-1, kind)
     cursor = tail
