@@ -1,31 +1,3 @@
-#[
-
----- Initial Motivation --------------------
-  from: https://github.com/miyuchina/mistletoe/issues/257
-  > This would require a major API (and internals) rework though, 
-  > while we would also need to think about backwards compatibility - 
-  > so apparently not a trivial stuff.
-
-
-  we're in 2025, age of AI, 
-  and still there is not a single simple markdown *extensible* 
-  markdown parser without quirks 
-  in any programming language open source.
-
-  I hate these noobie developers that 
-  they would say "this requires major blah blah"
-  instead of actually doing the right work.
-
-  this is an attempt to end my struggles and headaches, 
-  IN JUST A SINGLE DAMN FILE.
-
----- Data Structure --------------------
-
-wrapper 
-  consists of blocks
-           consists of spans
-]#
-
 import std/[
   strutils, strformat, 
   lists,
