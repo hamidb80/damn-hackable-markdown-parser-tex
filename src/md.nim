@@ -447,9 +447,10 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
       #   else:
       #     break
 
-      # of mdsText:
-      #   # TODO detect lang dir
-      #   discard
+      of mdsText:
+        for i in indexes: # all other non matched scrabbles
+          echo (mdsText, i)
+        break
 
       else: 
         break
