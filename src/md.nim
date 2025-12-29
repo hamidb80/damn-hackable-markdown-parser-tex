@@ -341,23 +341,16 @@ proc scrabbleMatchDeep(content: string, indexes: var DoublyLinkedList[Slice[int]
 
   # no change the indexes
   if not isNil n:
-    echo '\n', indexes
-
     let subs = subtract(n.value, result.get)
     case subs.len
     of 1: replace(indexes, n, subs[0])
     of 2: replace(indexes, n, subs[0], subs[1])
     else: raise newException(ValueError, "invalid subs")
 
-    echo (subs, n.value, result.get)
-    echo indexes
-    echo "...................."
-
-
+proc scrabbleMatchDeepMulti(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: seq[string]): seq[Slice[int]] = 
+  discard
       
 proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
-  # XXX leaf be linked list of indices of content :: linkedlist slice
-  # the pattern must be consequtive
   var indexes = toDoublyLinkedList([slice])
 
   for k in [
@@ -381,21 +374,13 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
     while true:
       case k 
       of mdsBold:
-        # re"***"
         # TODO try not to modify indexes in the function
+        # TODO make at a function, matchPair
         let head = scrabbleMatchDeep(content, indexes, "**")
         if isSome head:
           let tail = scrabbleMatchDeep(content, indexes, "**")
           if issome tail: 
-            echo "congrats !!"
-            for i in indexes:
-              stdout.write $i
-              stdout.write " '"
-              stdout.write content[i]
-              stdout.write "', "
-
-            quit() # XXX remove
-  
+            discard head.get.b+1 .. tail.get.a-1 # XXX mark as bold
           else:
             raise newException(ValueError, "invalid syntax")
         else:
