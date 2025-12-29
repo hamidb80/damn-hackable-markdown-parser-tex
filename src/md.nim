@@ -844,7 +844,7 @@ when isMainModule:
 #   echo ':', t[res.get], ':', indexes
 
 # else:
-  for (t, path) in walkDir "./tests/temp/":
+  for (t, path) in walkDir "./tests/":
     if t == pcFile: 
   # block: 
       # let path = "./tests/hard/reg.md"
