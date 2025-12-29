@@ -347,9 +347,24 @@ proc scrabbleMatchDeep(content: string, indexes: var DoublyLinkedList[Slice[int]
     of 2: replace(indexes, n, subs[0], subs[1])
     else: raise newException(ValueError, "invalid subs")
 
-proc scrabbleMatchDeepMulti(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: seq[string]): seq[Slice[int]] = 
-  discard
-      
+proc scrabbleMatchDeepMulti(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: seq[string]): Option[seq[Slice[int]]] = 
+  var acc: seq[Slice[int]]
+
+  # TODO try not to manipulate indexes here
+  for p in pattern:
+    let match = scrabbleMatchDeep(content, indexes, p)
+    if issome match:
+      acc.add match.get
+    else:
+      break
+
+  if   acc.len == 0: 
+    return
+  elif acc.len == pattern.len:
+    return some acc
+  else:
+    raise newException(ValueError, "cannot match")
+
 proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
   var indexes = toDoublyLinkedList([slice])
 
@@ -374,15 +389,11 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
     while true:
       case k 
       of mdsBold:
-        # TODO try not to modify indexes in the function
-        # TODO make at a function, matchPair
-        let head = scrabbleMatchDeep(content, indexes, "**")
-        if isSome head:
-          let tail = scrabbleMatchDeep(content, indexes, "**")
-          if issome tail: 
-            discard head.get.b+1 .. tail.get.a-1 # XXX mark as bold
-          else:
-            raise newException(ValueError, "invalid syntax")
+        let r = scrabbleMatchDeepMulti(content, indexes, @["**", "**"])
+        if isSome r:
+          let bounds = r.get
+          let span = bounds[0].b+1 .. bounds[1].a-1
+          echo span
         else:
           break
 
@@ -495,6 +506,8 @@ when isMainModule:
 # else:
   for (t, path) in walkDir "./tests/easy":
     if t == pcFile: 
+  # block: 
+  #     let path = "./tests/easy/play.md"
       echo "------------- ", path
 
       let 
