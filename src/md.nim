@@ -194,7 +194,9 @@ func toTex(n: MdNode, result: var string) =
     result.add "\\clearpage"
 
   of mdsWikilink: 
-    toTex MdNode(kind: mdsItalic, content: n.content), result
+    toTex MdNode(kind: mdsItalic, children: @[MdNode(kind: mdbPar, children: @[
+      MdNode(kind: mdsText, content: "WIKILINK")
+    ])]), result
 
   of mdWikiEmbed:
     let size = 15
