@@ -165,10 +165,14 @@ func toTex(n: MdNode, result: var string) =
     result.add "\n\\end{verbatim}"
 
   of mdsBoldItalic: 
-    let repl = MdNode(kind: mdsBold, 
-                     children: @[MdNode(kind: mdsItalic, 
-                                        children: n.children)])
-    toTex repl, result
+    # let repl = MdNode(kind: mdsBold, 
+    #                  children: @[MdNode(kind: mdsItalic, 
+    #                                     children: n.children)])
+    # toTex repl, result
+    result.add "\\verb{"
+    for sub in n.children:
+      toTex sub, result
+    result.add "}"
 
   of mdsBold: 
     result.add "\\textbf{"
