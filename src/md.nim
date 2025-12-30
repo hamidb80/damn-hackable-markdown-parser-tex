@@ -711,10 +711,22 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
           var cur = area
 
           # removes escape characters here (splits at escape)
-          for i in area:
-            if content[i] == '\\':
-              acc.add (k, cur.a ..< i )
-              cur = i+1 .. cur.b
+          # support \\ (escaping the escape)
+          var again = true
+          while again:
+            again = false
+            for i in cur:
+              if content[i] == '\\':
+                if content[i+1] == '\\':
+                  acc.add (k, cur.a .. i )
+                  cur = i+2 .. cur.b
+
+                else:
+                  acc.add (k, cur.a ..< i )
+                  cur = i+1 .. cur.b
+
+                again = true
+                break
           
           acc.add (k, cur)
 
