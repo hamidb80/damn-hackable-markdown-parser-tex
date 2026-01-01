@@ -1,7 +1,6 @@
 import std/[
   unittest,
   os,
-  paths,
   strformat,
 ]
 import md
