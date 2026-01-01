@@ -466,7 +466,7 @@ proc afterBlock(content: string, cursor: int, kind: MdNodeKind): int =
 proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[int] = 
   case kind
   of mdbMath:      stripSlice(content, slice, {'$'} + Whitespace)
-  of mdbCode:      stripSlice(content, slice, {'`'} + Whitespace)
+  of mdbCode:      stripSlice(content, slice, {'`'})
   of mdbHeader:    stripSlice(content, slice, {'#'} + Whitespace)
   of mdbQuote:     stripSlice(content, slice, {'>'} + Whitespace)
   of mdbPar:       stripSlice(content, slice, Whitespace)
@@ -797,9 +797,13 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
            content: content[contentslice])
   
   of mdbCode: 
-    # TODO detect lang
+    let nl = skipAtNextLine(content, contentslice)
+    let langslice = contentslice.a .. nl-1
+    let codeslice = nl+1 .. contentslice.b-1
+    # echo (langslice, content[langslice].strip, content[codeslice].strip)
     MdNode(kind: kind,
-           content: content[contentslice])
+           lang: content[langslice].strip,  # windows uses \r\n for new line :/
+           content: content[codeslice].strip)
 
   of mdWikiEmbed:
     MdNode(kind: kind,
