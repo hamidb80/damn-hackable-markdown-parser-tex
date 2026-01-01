@@ -1,14 +1,16 @@
+# ----- Imports  ---------------------------------
+
 import std/[
   strutils, strformat, 
   lists, sequtils,
   algorithm,
   options,
-  os,
 ]
 
+# ----- Type Defs  -------------------------------
 
 type
-  MdNodeKind = enum
+  MdNodeKind* = enum
     # wrapper
     mdWrap # XXX add indent to this (for indent detection, like in lists)
 
@@ -43,12 +45,12 @@ type
     # other
     mdHLine # ---
   
-  MdDir = enum
+  MdDir* = enum
     unknown
     rtl
     ltr
 
-  MdNode = ref object
+  MdNode* = ref object
     # common
     kind:     MdNodeKind
     children: seq[MdNode]
@@ -61,12 +63,10 @@ type
     lang:     string # for code
     href:     string # for link
 
-
 type
   SimplePatternMeta = enum
     spmWhitespace  # \s
     spmDigit       # \d
-
 
   SimplePatternTokenKind = enum
     sptChar
@@ -85,9 +85,9 @@ type
 
   SimplePattern = seq[SimplePatternNode]
 
-# -------------------------------------------------
+# ----- Constants --------------------------------
 
-const notfound = -1
+const notfound* = -1
 
 const MdLeafNodes = {mdsText, 
                     mdsMath, mdsCode, 
@@ -96,16 +96,19 @@ const MdLeafNodes = {mdsText,
 
 # ----- General Utils ------------------------------
 
-# func empty(a: seq): bool = a.len == 0
-
 # func `+`(n,m: Slice[int]): Slice[int] = 
 #   (n.a + m.a) .. (n.b + m.b)
+
+# func `-`(n,m: Slice[int]): Slice[int] = 
+#   (n.a - m.a) .. (n.b - m.b)
+
+# func isEmpty(a: seq): bool = a.len == 0
 
 func at(str: string, index: int): char = 
   if index in str.low .. str.high: str[index]
   else:                            '\0'
 
-func subtract(n, m: Slice[int]): seq[Slice[int]] = 
+func subtract*(n, m: Slice[int]): seq[Slice[int]] = 
   # case 1
   # n-----------n
   #    m----m
@@ -142,16 +145,16 @@ func subtract(n, m: Slice[int]): seq[Slice[int]] =
   if n.b > m.b: # end only
     result.add max(n.a, m.b+1) .. n.b
 
-func intersects(n, m: Slice[int]): bool =
+func intersects*(n, m: Slice[int]): bool =
   subtract(n, m) != @[n]
 
-func contains(n, m: Slice[int]): bool =
+func contains*(n, m: Slice[int]): bool =
   m.a in n and 
   m.b in n
 
 # ----- Convertors ---------------------------------
 
-func toXml(n: MdNode, result: var string) = 
+func toXml*(n: MdNode, result: var string) = 
   result.add "<"
   result.add $n.kind
   result.add ">"
@@ -167,11 +170,11 @@ func toXml(n: MdNode, result: var string) =
   result.add $n.kind
   result.add ">"
 
-func toXml(n: MdNode): string = 
+func toXml*(n: MdNode): string = 
   toXml n, result
 
 
-func toTex(n: MdNode, result: var string) = 
+func toTex*(n: MdNode, result: var string) = 
   case n.kind
 
   of mdWrap:
@@ -316,12 +319,41 @@ func toTex(n: MdNode, result: var string) =
   of mdbTable, mdsLink, mdbQuote:
     raise newException(ValueError, fmt"toTex for kind {n.kind} is not implemented")
 
-func toTex(n: MdNode): string = 
+func toTex*(n: MdNode): string = 
   toTex n, result
+
+# ----- Slice Masking Utils ------------------------
+
+proc replace*[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], left, right: T) = 
+  var 
+    l = newDoublyLinkedNode(left)
+    r = newDoublyLinkedNode(right)
+
+  l.prev = n.prev
+  r.next = n.next
+  l.next = r
+  r.prev = l
+
+  if isNil n.prev:   list.head = l
+  else:            n.prev.next = l
+
+  if isNil n.next:   list.tail = r
+  else:            n.next.prev = r
+
+proc replace*[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], repl: T) = 
+  n.value = repl
+
+proc subtract*(ns: var DoublyLinkedList[Slice[int]], n: DoublyLinkedNode[Slice[int]], m: Slice[int]) = 
+  let subs = subtract(n.value, m)
+  case subs.len
+  of 0: ns.remove n
+  of 1: replace(ns, n, subs[0])
+  of 2: replace(ns, n, subs[0], subs[1])
+  else: raise newException(ValueError, "invalid subs: " & $subs.len)
 
 # ----- Matching Utils -----------------------------
 
-proc p(pattern: string): SimplePattern = 
+proc p*(pattern: string): SimplePattern = 
   var i = 0
   while i < pattern.len:
     
@@ -353,7 +385,7 @@ proc p(pattern: string): SimplePattern =
 
 const listPatterns = [p"- ", p"\+ ", p"* ", p "\\d+. "]
 
-proc matches(ch: char, pt: SimplePatternToken): bool = 
+proc matches*(ch: char, pt: SimplePatternToken): bool = 
   case pt.kind
   of sptChar: ch == pt.ch
   of sptMeta:
@@ -361,7 +393,7 @@ proc matches(ch: char, pt: SimplePatternToken): bool =
     of spmWhitespace: ch in Whitespace
     of spmDigit     : ch in Digits
 
-proc find(content: string, slice: Slice[int], sub: string): int = 
+proc find*(content: string, slice: Slice[int], sub: string): int = 
   var i = slice.a
   var j = 0 
   
@@ -377,7 +409,7 @@ proc find(content: string, slice: Slice[int], sub: string): int =
 
   notfound
 
-proc skipWhitespaces(content: string, cursor: int): int = # : SkipWhitespaceReport = 
+proc skipWhitespaces*(content: string, cursor: int): int = # : SkipWhitespaceReport = 
   var i = cursor
   while i < content.len:
     if content[i] in Whitespace:
@@ -386,7 +418,7 @@ proc skipWhitespaces(content: string, cursor: int): int = # : SkipWhitespaceRepo
       break
   i
 
-proc startsWith(str: string, cursor: int, pattern: SimplePattern): int = 
+proc startsWith*(str: string, cursor: int, pattern: SimplePattern): int = 
   if str.high < cursor: return notfound
 
   var 
@@ -424,7 +456,7 @@ proc startsWith(str: string, cursor: int, pattern: SimplePattern): int =
   
   i
 
-proc skipBefore(content: string, cursor: int, pattern: SimplePattern): int = 
+proc skipBefore*(content: string, cursor: int, pattern: SimplePattern): int = 
   var i  = cursor
   
   while i < content.len:
@@ -433,7 +465,7 @@ proc skipBefore(content: string, cursor: int, pattern: SimplePattern): int =
   
   raise newException(ValueError, "cannot match end of " & $pattern)
 
-proc stripSlice(content: string, slice: Slice[int], chars: set[char]): Slice[int] = 
+proc stripSlice*(content: string, slice: Slice[int], chars: set[char]): Slice[int] = 
   var i = slice.a
   var j = slice.b
 
@@ -442,29 +474,73 @@ proc stripSlice(content: string, slice: Slice[int], chars: set[char]): Slice[int
   
   i .. j
 
-proc skipChars(content: string, slice: Slice[int], chars: set[char]): int = 
+proc skipChars*(content: string, slice: Slice[int], chars: set[char]): int = 
   var i = slice.a
   while i in slice:
     if content[i] notin chars: break
     inc i
   i # or at the end of file
 
-proc skipChar(content: string, slice: Slice[int], ch: char): int = 
+proc skipChar*(content: string, slice: Slice[int], ch: char): int = 
   skipChars(content, slice, {ch})
 
-proc skipNotChar(content: string, slice: Slice[int], ch: char): int = 
+proc skipNotChar*(content: string, slice: Slice[int], ch: char): int = 
   var i = slice.a
   while i in slice:
     if content[i] == ch: break
     inc i
   i # or at the end of file
 
-proc skipAtNextLine(content: string, slice: Slice[int]): int = 
+proc skipAtNextLine*(content: string, slice: Slice[int]): int = 
   skipNotChar(content, slice, '\n')
+
+
+proc scrabbleMatchDeep*(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: string): Option[Slice[int]] =
+  var j = 0
+  var n: DoublyLinkedNode[Slice[int]]
+
+  block findPattern:
+    for ni in indexes.nodes:
+      let area = ni.value # consequtive indexes
+      for i in area:
+        let cond = (i == 0 or content[i-1] != '\\') and # considers escape
+                    pattern[j] == content[i]
+        if cond:
+          inc j
+          if j == pattern.len: 
+            result = some i-j+1 .. i
+            n = ni
+            break findPattern
+
+        else:
+          reset j
+
+  # no change the indexes
+  if not isNil n:
+    subtract indexes, n, result.get
+
+proc scrabbleMatchDeepMulti*(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: seq[string]): Option[seq[Slice[int]]] = 
+  var acc: seq[Slice[int]]
+
+  # TODO try not to manipulate indexes here
+  for p in pattern:
+    let match = scrabbleMatchDeep(content, indexes, p)
+    if issome match:
+      acc.add match.get
+    else:
+      break
+
+  if   acc.len == 0: 
+    return
+  elif acc.len == pattern.len:
+    return some acc
+  else:
+    # echo scrabbleMatchDeep(content, indexes, pattern[0])
+    raise newException(ValueError, "cannot match")
 
 # ----- Main Functionalities ---------------------
 
-proc detectBlockKind(content: string, cursor: int): MdNodeKind = 
+proc detectBlockKind*(content: string, cursor: int): MdNodeKind = 
   if   startsWith(content, cursor, p"```")   != notfound: mdbCode
   elif startsWith(content, cursor, p"$$\s")  != notfound: mdbMath
   elif startsWith(content, cursor, p"> ")    != notfound: mdbQuote
@@ -475,7 +551,7 @@ proc detectBlockKind(content: string, cursor: int): MdNodeKind =
   elif listPatterns.anyit(notfound != startsWith(content, cursor, it)): mdbList
   else: mdbPar
 
-proc skipAfterParagraphSep(content: string, slice: Slice[int], kind: MdNodeKind): int = 
+proc skipAfterParagraphSep*(content: string, slice: Slice[int], kind: MdNodeKind): int = 
   ## go until double \s+\n\s+\n
 
   var newlines = 0
@@ -494,7 +570,7 @@ proc skipAfterParagraphSep(content: string, slice: Slice[int], kind: MdNodeKind)
   
   i
 
-proc afterBlock(content: string, cursor: int, kind: MdNodeKind): int = 
+proc afterBlock*(content: string, cursor: int, kind: MdNodeKind): int = 
   case kind
   of mdbHeader: skipAtNextLine(content, cursor .. content.high)
   of mdHLine:   skipAtNextLine(content, cursor .. content.high)
@@ -526,7 +602,7 @@ proc afterBlock(content: string, cursor: int, kind: MdNodeKind): int =
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
 
-proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[int] = 
+proc onlyContent*(content: string, slice: Slice[int], kind: MdNodeKind): Slice[int] = 
   case kind
   of mdbMath:      stripSlice(content, slice, {'$'} + Whitespace)
   of mdbCode:      stripSlice(content, slice, {'`'})
@@ -536,77 +612,7 @@ proc stripContent(content: string, slice: Slice[int], kind: MdNodeKind): Slice[i
   of mdWikiEmbed:  stripSlice(content, slice, {'!', '[', ']'} + Whitespace)
   else: slice
 
-proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], left, right: T) = 
-  var 
-    l = newDoublyLinkedNode(left)
-    r = newDoublyLinkedNode(right)
-
-  l.prev = n.prev
-  r.next = n.next
-  l.next = r
-  r.prev = l
-
-  if isNil n.prev:   list.head = l
-  else:            n.prev.next = l
-
-  if isNil n.next:   list.tail = r
-  else:            n.next.prev = r
-
-proc replace[T](list: var DoublyLinkedList[T], n: DoublyLinkedNode[T], repl: T) = 
-  n.value = repl
-
-proc subtract(ns: var DoublyLinkedList[Slice[int]], n: DoublyLinkedNode[Slice[int]], m: Slice[int]) = 
-  let subs = subtract(n.value, m)
-  case subs.len
-  of 0: ns.remove n
-  of 1: replace(ns, n, subs[0])
-  of 2: replace(ns, n, subs[0], subs[1])
-  else: raise newException(ValueError, "invalid subs: " & $subs.len)
-
-proc scrabbleMatchDeep(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: string): Option[Slice[int]] =
-  var j = 0
-  var n: DoublyLinkedNode[Slice[int]]
-
-  block findPattern:
-    for ni in indexes.nodes:
-      let area = ni.value # consequtive indexes
-      for i in area:
-        let cond = (i == 0 or content[i-1] != '\\') and # considers escape
-                    pattern[j] == content[i]
-        if cond:
-          inc j
-          if j == pattern.len: 
-            result = some i-j+1 .. i
-            n = ni
-            break findPattern
-
-        else:
-          reset j
-
-  # no change the indexes
-  if not isNil n:
-    subtract indexes, n, result.get
-
-proc scrabbleMatchDeepMulti(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: seq[string]): Option[seq[Slice[int]]] = 
-  var acc: seq[Slice[int]]
-
-  # TODO try not to manipulate indexes here
-  for p in pattern:
-    let match = scrabbleMatchDeep(content, indexes, p)
-    if issome match:
-      acc.add match.get
-    else:
-      break
-
-  if   acc.len == 0: 
-    return
-  elif acc.len == pattern.len:
-    return some acc
-  else:
-    # echo scrabbleMatchDeep(content, indexes, pattern[0])
-    raise newException(ValueError, "cannot match")
-
-proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] = 
+proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] = 
   var acc: seq[tuple[kind: MdNodeKind, slice: Slice[int]]]
   var indexes = toDoublyLinkedList([slice])
 
@@ -788,8 +794,8 @@ proc parseMdSpans(content: string, slice: Slice[int]): seq[MdNode] =
 
   root.children
 
-proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
-  let contentslice = stripContent(content, slice, kind)
+proc parseMdBlock*(content: string, slice: Slice[int], kind: MdNodeKind): MdNode = 
+  let contentslice = onlyContent(content, slice, kind)
 
   case kind
   
@@ -867,7 +873,7 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
 
-proc parseMarkdown(content: string): MdNode = 
+proc parseMarkdown*(content: string): MdNode = 
   result = MdNode(kind: mdWrap)
 
   var cursor = 0
@@ -880,9 +886,9 @@ proc parseMarkdown(content: string): MdNode =
     result.children.add b
     cursor = tail
 
-# ------ Pipes --------------------------------
+# ------ Pre-Processors ---------------------------
 
-proc attachNextCommentOfFigAsDesc(root: sink MdNode): MdNode = 
+proc attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode = 
   ## pipe (preprocessor)
   
   case root.kind
@@ -910,39 +916,3 @@ proc attachNextCommentOfFigAsDesc(root: sink MdNode): MdNode =
     discard
   
   root
- 
-# ------ Run ----------------------------------
-
-when isMainModule:
-  # tests ---------------------------
-  assert 4        == startsWith("### hello", 0, p"#+\s+")
-  assert 2        == startsWith("# hello",   0, p"#+\s+")
-  assert notfound == startsWith("hello",     0, p"#+\s+")
-  assert 3        == startsWith("```py\n wow\n```", 0, p"```")
-  assert 4        == startsWith("\n```", 0, p "\n```")
-  assert 5        == startsWith("-----", 0, p"---+")
-  assert 3        == startsWith("\n$$",  0, p "\n$$")
-  assert 3        == startsWith("4. hi",  0, p"\d+. ")
-  assert 4        == startsWith("43. hi", 0, p"\d+. ")
-  assert notfound == startsWith("",       0, p"\d+. ")
-  assert notfound == startsWith("**",     0, p"* ")
-#   const t = "wow how are you man??"
-#   var indexes = toDoublyLinkedList([0..<t.len])
-#   let res = scrabbleMatchDeep(t, indexes, "are")
-#   echo ':', t[res.get], ':', indexes
-
-# else:
-  for (t, path) in walkDir "./tests/":
-    if t == pcFile: 
-  # block: 
-      # let path = "./tests/hard/reg.md"
-      echo "------------- ", path
-
-      let 
-        content = readFile path
-        doc     = parseMarkdown content
-        newdoc  = attachNextCommentOfFigAsDesc doc
-      
-      writeFile "./play.xml", toXml newdoc
-      writeFile "./play.tex", toTex newdoc
-      # TODO to HTML
