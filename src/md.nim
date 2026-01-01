@@ -1,6 +1,6 @@
 import std/[
   strutils, strformat, 
-  lists,
+  lists, sequtils,
   algorithm,
   options,
   os,
@@ -25,7 +25,7 @@ type
     mdbTable
 
     # spans (inline elements)
-    mdsDir ## direction of language of choice
+    mdsDir ## direction of language of choice, consecutive words with whitespace between, emojis and other should be lesf as is
     mdsBoldItalic ## ***...***
     mdsBold ## **...**
     mdsItalic ## *...* _..._
@@ -306,6 +306,7 @@ proc matches(ch: char, pt: SimplePatternToken): bool =
     of spmWhitespace: ch in Whitespace
     of spmDigit     : ch in Digits
 
+const listPatterns = [p"- ", p"\+ ", p"* ", p "\\d+. "]
 
 proc find(content: string, slice: Slice[int], sub: string): int = 
   var i = slice.a
@@ -417,10 +418,7 @@ proc detectBlockKind(content: string, cursor: int): MdNodeKind =
   elif startsWith(content, cursor, p"---+")  != notfound: mdHLine
   elif startsWith(content, cursor, p"![[")   != notfound: mdWikiEmbed
   elif startsWith(content, cursor, p"![")    != notfound: mdsEmbed
-  elif startsWith(content, cursor, p"- ")    != notfound or
-       startsWith(content, cursor, p"\+ ")   != notfound or
-       startsWith(content, cursor, p"* ")    != notfound or 
-       startsWith(content, cursor, p"\d+. ") != notfound: mdbList
+  elif listPatterns.anyit(notfound != startsWith(content, cursor, it)): mdbList
   else: mdbPar
 
 proc skipAfterParagraphSep(content: string, slice: Slice[int], kind: MdNodeKind): int = 
@@ -830,7 +828,7 @@ proc parseMdBlock(content: string, slice: Slice[int], kind: MdNodeKind): MdNode 
     # list indicator
     var listId: SimplePattern
     
-    for i, id in [p"- ", p"\+ ", p"* ", p "\\d+. "]:
+    for i, id in listPatterns:
       if startsWith(content, slice.a, id) != notfound:
         listId = id
         b.numbered = i == 3
