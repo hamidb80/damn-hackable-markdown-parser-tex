@@ -880,6 +880,8 @@ proc parseMarkdown(content: string): MdNode =
     result.children.add b
     cursor = tail
 
+# ------ Pipes --------------------------------
+
 proc attachNextCommentOfFigAsDesc(root: sink MdNode): MdNode = 
   ## pipe (preprocessor)
   
@@ -909,7 +911,7 @@ proc attachNextCommentOfFigAsDesc(root: sink MdNode): MdNode =
   
   root
  
-# -----------------------------
+# ------ Run ----------------------------------
 
 when isMainModule:
   # tests ---------------------------
