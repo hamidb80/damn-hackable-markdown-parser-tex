@@ -3,7 +3,6 @@
 import std/[
   strutils, strformat, 
   lists, sequtils,
-  options,
   algorithm,
   options,
 ]
@@ -331,11 +330,22 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     result.add tag
     result.add "}"
 
+  of mdsLink:
+    result.add "\\href{"
+    result.add n.content
+    result.add "}"
+
+    if n.children.len > 0:
+      result.add "{"
+      for sub in n.children:
+        toTex sub, settings, result
+      result.add "}"
+
   of mdbQuote:
     # TODO
     discard
 
-  of mdbTable, mdsLink:
+  of mdbTable:
     raise newException(ValueError, fmt"toTex for kind {n.kind} is not implemented")
 
 func toTex*(n: MdNode, settings: MdSettings): string = 
@@ -450,13 +460,7 @@ proc startsWith*(str: string, cursor: int, pattern: SimplePattern): int =
       return i
 
     if i >= str.len: 
-      # if j == pattern.high and c in pattern[j].repeat:
-      #   return i
-      # else:
         break
-    
-    # let cond = matches(str[i], pattern[j].token)
-    # echo (i, j, c, str[i], pattern[j], cond)
 
     if matches(str[i], pattern[j].token):
       inc c
@@ -541,7 +545,7 @@ proc scrabbleMatchDeep*(content: string, indexes: var DoublyLinkedList[Slice[int
 proc scrabbleMatchDeepMulti*(content: string, indexes: var DoublyLinkedList[Slice[int]], pattern: seq[string]): Option[seq[Slice[int]]] = 
   var acc: seq[Slice[int]]
 
-  # TODO try not to manipulate indexes here
+  # TODO do not to manipulate indexes here
   for p in pattern:
     let match = scrabbleMatchDeep(content, indexes, p)
     if issome match:
@@ -549,13 +553,14 @@ proc scrabbleMatchDeepMulti*(content: string, indexes: var DoublyLinkedList[Slic
     else:
       break
 
-  if   acc.len == 0: 
-    return
-  elif acc.len == pattern.len:
+  if acc.len == pattern.len:
     return some acc
-  else:
-    # echo scrabbleMatchDeep(content, indexes, pattern[0])
+
+  elif acc.len == pattern.len - 1:
     raise newException(ValueError, "cannot match")
+  
+  else:
+    discard
 
 # ----- Main Functionalities ---------------------
 
@@ -691,12 +696,6 @@ proc separateLangs(content: string, area: Slice[int]): seq[MdNode] =
     langs     = ws.mapit(detectLang(content, it))
     langsMelt = meltSeq langs
 
-  # echo "----------"
-  # echo "'", content[area], "'"
-  # echo ws
-  # echo langs
-  # echo langsMelt
-
   for lm in langsMelt:
     let n = MdNode(kind: mdsDir, dir: langs[lm.a], slice: ws[lm.a].a .. ws[lm.b].b)
     result.add n
@@ -707,12 +706,12 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
 
   for k in [
     # sorted by priority
+    mdsLink,
     mdsCode,
     mdsMath,
     mdWikiEmbed,
     mdsWikilink,
     mdsEmbed,
-    mdsLink,
     mdsBoldItalic,
     mdsBold,
     mdsItalic,
@@ -727,7 +726,7 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
         let bounds = r.get
         let span = bounds[0].b+1 .. bounds[1].a-1
         result = some span
-      
+
     while true:
       case k
 
@@ -797,13 +796,22 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
       #   else:
       #     break
 
-      # of mdsLink:
-      #   let r = scrabbleMatchDeepMulti(content, indexes, @["[", "](", ")"])
-      #   if isSome r:
-      #     let bounds = r.get
-      #     let span = bounds[0].b+1 .. bounds[1].a-1
-      #   else:
-      #     break
+      of mdsLink:
+        let r = scrabbleMatchDeepMulti(content, indexes, @["[", "](", ")"])
+        if isSome r:
+          let bounds = r.get
+          let area1  = bounds[0].b+1 .. bounds[1].a-1
+          let area2  = bounds[1].b+1 .. bounds[2].a-1
+          let link   = content[area2].strip 
+
+          acc.add MdNode(kind: k, content: link, slice: area1)
+
+          for ni in indexes.nodes:
+            for a in [bounds[0], bounds[1], bounds[2], area2]:
+              if ni.value.intersects a:
+                indexes.subtract ni, a
+        else:
+          break
 
       of mdsComment:
         let head = scrabbleMatchDeep(content, indexes, "// ")
@@ -826,8 +834,7 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
           let phrases = separateLangs(content, area)
           acc.add phrases
 
-          if phrases.len == 0:
-            continue
+          if phrases.len == 0: continue
          
           # --------------
 
@@ -876,6 +883,7 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
       else: 
         break
 
+
   # aggregate
   proc cmpFirst(a,b: MdNode): int = 
     cmp(a.slice.a, b.slice.a)
@@ -886,7 +894,6 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
   var stack: seq[MdNode] = @[root]
 
   for node in acc:
-
     # TODO do not copy
     if node.kind in MdLeafNodes:
       node.content = content[node.slice]
@@ -936,7 +943,7 @@ proc parseMdBlock*(content: string, slice: Slice[int], kind: MdNodeKind): MdNode
     let nl = skipAtNextLine(content, contentslice)
     let langslice = contentslice.a .. nl-1
     let codeslice = nl+1 .. contentslice.b-1
-    # echo (langslice, content[langslice].strip, content[codeslice].strip)
+
     MdNode(kind: kind,
            lang: content[langslice].strip,  # windows uses \r\n for new line :/
            content: content[codeslice].strip)
