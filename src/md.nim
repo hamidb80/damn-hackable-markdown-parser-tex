@@ -655,7 +655,7 @@ proc wordSlices(content: string, area: Slice[int]): seq[Slice[int]] =
       changes.add i
     l = w
 
-  block: # include_last_word_or_last_whitespace
+  if 1 <= changes.len: # include_last_word_or_last_whitespace
     if l:
       changes.add changes[^1]+1
     
