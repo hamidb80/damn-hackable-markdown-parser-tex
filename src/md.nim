@@ -655,15 +655,15 @@ proc wordSlices(content: string, area: Slice[int]): seq[Slice[int]] =
       changes.add i
     l = w
 
-
-  if l:
-    changes.add changes[^1]+1
-  
-  var t = area.b
-  while t in area and content[t] in {'\n','\r'}:
-    dec t
-
-  changes.add t+1
+  block: # include_last_word_or_last_whitespace
+    if l:
+      changes.add changes[^1]+1
+    
+    var t = area.b
+    while t in area and content[t] in {'\n','\r'}:
+      dec t
+    
+    changes.add t+1
 
   for i in countup(1, changes.high, 2):
     let head = changes[i-1]
