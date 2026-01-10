@@ -55,14 +55,15 @@ proc separateLangs(content: string, area: Slice[int]): seq[Phrase] =
     langs     = ws.mapit(detectLang(content, it))
     langsMelt = meltSeq langs
 
-  
+  for i, lm in langsMelt:
+    result.add Phrase(dir: langs[lm.a], slice: ws[lm.a].a .. ws[lm.b].b)
 
 proc separateLangs(content: string): seq[Phrase] =
   separateLangs content, 0..<content.len
 
 const 
   c1 = """
-    سلام چطوری؟ K-Means رو بالاخره فهمیدی؟ خارجی ها به KNN میگن K Nearest Neightboards
+    سلام چطوری؟ K-Means رو بالاخره فهمیدی؟ خارجی ها به KNN میگن K Nearest Neightboards خخخ
   """
 
   c2 = """
