@@ -46,7 +46,6 @@ type
     mdHLine # ---
   
   MdDir* = enum
-    mddSpace
     mddUndecided
     mddRtl
     mddLtr
@@ -310,7 +309,7 @@ func toTex*(n: MdNode, result: var string) =
 
   of mdsEmbed:
     # TODO
-    raise newException(ValueError, fmt"TODO")
+    discard
 
   of mdFrontMatter:
     discard
@@ -603,11 +602,12 @@ proc afterBlock*(content: string, cursor: int, kind: MdNodeKind): int =
     let e = skipBefore(content, i, p pat)
     1 + e + len pat
 
-  # of mdsEmbed:
-  #   let pat = "]"
-  #   let i = cursor + len "!["
-  #   let e = skipBefore(content, i, p pat)
-  #   1 + e + len pat
+  of mdsEmbed:
+    # FIXME
+    let pat = ")"
+    let i = cursor + len "!["
+    let e = skipBefore(content, i, p pat)
+    1 + e + len pat
 
   of mdbCode: 
     let pat = "\n```"
@@ -634,6 +634,54 @@ proc onlyContent*(content: string, slice: Slice[int], kind: MdNodeKind): Slice[i
   of mdbPar:       stripSlice(content, slice, Whitespace)
   of mdWikiEmbed:  stripSlice(content, slice, {'!', '[', ']'} + Whitespace)
   else: slice
+
+proc detectLang(content: string, area: Slice[int]): MdDir =
+  for i in area:
+    if isUnicode    content[i]: return mddRtl
+    if isAlphaAscii content[i]: return mddLtr
+  return mddUndecided
+
+
+proc wordSlices(content: string, area: Slice[int]): seq[Slice[int]] =
+  var changes: seq[int]
+  var last = true # was whitespace?
+
+  for i in area:
+    let w = content[i] in Whitespace
+    if  w != last:
+      changes.add i
+    last = w
+
+  if not last:
+    changes.add area.b+1
+
+  for i in countup(1, changes.high, 2):
+    let head = changes[i-1]
+    let tail = changes[i]-1
+    result.add head..tail
+
+proc meltSeq[T](elements: seq[T]): seq[Slice[int]] = 
+  var j = 0
+
+  for i in 1 ..< elements.len:
+    if elements[j] != elements[i]:
+      result.add j ..< i
+      j = i
+
+  let s = j ..< elements.len
+  if 1 <= len s:
+    result.add s
+
+proc separateLangs(content: string, area: Slice[int]): seq[MdNode] =
+  let 
+    ws        = wordSlices(content, area)
+    langs     = ws.mapit(detectLang(content, it))
+    langsMelt = meltSeq langs
+
+  for lm in langsMelt:
+    let n = MdNode(kind: mdsDir, dir: langs[lm.a], slice: ws[lm.a].a .. ws[lm.b].b)
+    result.add n
+
 
 proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] = 
   var acc: seq[MdNode]
@@ -757,91 +805,12 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
           newIndexes: seq[Slice[int]]
         
         for area in indexes:
-          var
-            phrases: seq[Phrase]
-            dirState = mddSpace
-            i = area.a # index
-            h = i      # head
-            t = i      # tail
+          let phrases = separateLangs(content, area)
+          acc.add phrases
+          # echo " >> ", area, ' ', content[area]
 
-          template put {.dirty.} =
-            let sc = 
-              if 0 != phrases.len and dirState == phrases[^1].dir:
-                let ph = phrases.pop
-                ph.slice.a .. t
-              else:
-                h .. t
-            
-            phrases.add Phrase(slice: sc, dir: dirState)
-            
-
-          while i <= area.b:
-            var adjust = 1
-            let 
-              a = isAlphaAscii content[i]
-              u = isUnicode    content[i]
-              s = isSpaceAscii content[i]
-
-            case dirState
-            of mddSpace:
-              if a:
-                dirState = mddLtr
-
-              elif u:
-                dirState = mddRtl
-
-              elif s:
-                discard
-
-              else:
-                dirState = mddUndecided
-                
-              h = i
-              t = i
-
-            of mddUndecided:
-              if a:
-                dirState = mddLtr
-
-              elif u:
-                dirState = mddRtl
-
-              else:
-                discard
-
-              t = i
-
-            of mddRtl: 
-              if a:
-                put()
-                dirState = mddSpace
-                adjust = 0
-
-              elif s:
-                discard
-
-              else:
-                t = i
-
-            of mddLtr: 
-              if u:
-                put()
-                dirState = mddSpace
-                adjust = 0
-
-              elif s:
-                discard
-
-              else:
-                t = i
-
-            # echo (i, h..t, dirState, content[i])
-            inc i, adjust
-          put()
-          
-          for ph in phrases:
-            acc.add MdNode(kind: mdsDir, dir: ph.dir, slice: ph.slice)
-
+          if phrases.len == 0:
+            continue
           # --------------
 
           var j = area.a
@@ -854,10 +823,12 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
             j = ph.slice.b+1
             newIndexes.add ph.slice
 
-          let s = (phrases[^1].slice.b+1) .. t
-          if 1 <= len s: newIndexes.add s
+          # let s = (phrases[^1].slice.b+1) .. slice.b
+          # if 1 <= len s: newIndexes.add s
 
         indexes = toDoublyLinkedList newIndexes
+        # for ind in indexes:
+        #   echo k, " && ", ind, ' ', content[ind]
 
         break
 
@@ -898,12 +869,12 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
 
   acc.sort cmpFirst
 
-  var root = MdNode(kind: mdWrap, slice: slice) # XXX define wrap
+  var root = MdNode(kind: mdWrap, slice: slice)
   var stack: seq[MdNode] = @[root]
 
   for node in acc:
 
-    # FIXME do not copy
+    # TODO do not copy
     if node.kind in MdLeafNodes:
       node.content = content[node.slice]
 
@@ -996,7 +967,11 @@ proc parseMdBlock*(content: string, slice: Slice[int], kind: MdNodeKind): MdNode
                             children: parseMdSpans(content, s))
 
     b
-  
+
+  of mdsEmbed:
+    # TODO
+    MdNode(kind: kind)
+
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
 
