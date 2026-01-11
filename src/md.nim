@@ -193,6 +193,7 @@ func toXml*(n: MdNode): string =
   toXml n, result
 
 
+# TODO escape _, \, ... in latex
 func toTex*(n: MdNode, settings: MdSettings, result: var string) = 
   case n.kind
 
@@ -1054,5 +1055,5 @@ proc attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
   
   root
 
-# TODO escape _ in latex
 # TODO auto link finder (convert normal text -> link) via \url
+# TODO simpler span parser
