@@ -707,10 +707,8 @@ func meltSeq(elements: seq[MdDir]): seq[Slice[int]] =
   var j = 0
 
   for i in 1 ..< elements.len:
-    if   elements[i] == mddUndecided:
-      discard
-
-    elif elements[j] != elements[i]:
+    if elements[i] != mddUndecided and 
+       elements[i] != elements[j]:
       result.add j ..< i
       j = i
 
@@ -718,7 +716,7 @@ func meltSeq(elements: seq[MdDir]): seq[Slice[int]] =
   if 1 <= len s:
     result.add s
 
-func separateLangs(content; slice): seq[MdNode] =
+func separateLangs*(content; slice): seq[MdNode] =
   let 
     ws        = wordSlices(content, slice)
     langs     = ws.mapit(detectLang(content, it))

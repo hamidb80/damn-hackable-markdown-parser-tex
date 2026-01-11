@@ -15,43 +15,30 @@ when isMainModule:
       (_,_, oext) = splitFile opath
       
       pagewidth     = 
-        try:
-          parseint pw
-        except ValueError:
-          quit fmt"invalid page width '{pw}', see help"
+        try:    parseint pw
+        except: quit fmt"invalid page width '{pw}', see help"
       textdirection = 
         case dir
         of "ltr": mddLtr
         of "rtl": mddRtl
         else    : quit fmt"invalid '{dir}' direction, see help"
-    
-      settings = MdSettings(
-                      pagewidth: pagewidth, 
-                      langdir:   textdirection)
-      content = 
+      settings      = MdSettings(pagewidth: pagewidth, langdir: textdirection)
+      
+      content  = 
         case iext
         of ".md":
-          try:
-            readFile ipath
-          except:
-            quit fmt"cannot read input file at '{ipath}'"
-            
-        else:
-          quit fmt"invalid input file extension '{iext}', see help"
-      md = attachNextCommentOfFigAsDesc parseMarkdown content
-      result =
+          try:    readFile ipath
+          except: quit fmt"cannot read input file at '{ipath}'"
+        else:     quit fmt"invalid input file extension '{iext}', see help"
+      md       = attachNextCommentOfFigAsDesc parseMarkdown content
+      result   =
         case oext
-        of ".tex":
-          toTex(md, settings)
-        of ".xml":
-          toXml md
-        else:
-          quit fmt"invalid output file extension '{oext}', see help"
+        of ".tex": toTex md, settings
+        of ".xml": toXml md
+        else:      quit fmt"invalid output file extension '{oext}', see help"
 
-    try:
-      writeFile opath, result
-    except:
-      quit fmt"cannot write output file at '{opath}'"
+    try:    writeFile opath, result
+    except: quit fmt"cannot write output file at '{opath}'"
 
   else:
     quit """
