@@ -58,12 +58,13 @@ type
     slice:    Slice[int]
 
     # specific
-    numbered: bool   # for list
-    dir:      MdDir  # for text
-    priority: int    # for header
-    lang:     string # for code
-    href:     string # for link
-    size:     Option[int]
+    numbered:  bool   # for list
+    dir:       MdDir  # for text
+    priority:  int    # for header
+    lang:      string # for code
+    href:      string # for link
+    size:      Option[int]
+    piggyback: bool 
 
   MdSettings* = object
     langdir*:   MdDir
@@ -197,7 +198,7 @@ func toXml*(n: MdNode, result: var string) =
   else          : discard
 
   for i, sub in n.children:
-    if i != 0: << ' '
+    if i != 0 and n.children[i-1].piggyback != true: << ' '
     toXml sub, result
 
   << "</"
@@ -229,13 +230,13 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << tag
     << '{'
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << '}'
 
   of mdbPar:
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
 
   of mdsDir: 
@@ -257,7 +258,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
       << '{'
 
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
   
     if filled tag:
@@ -286,35 +287,35 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
   of mdsBoldItalic: 
     << "\\verb{"
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << "}"
 
   of mdsBold: 
     << "\\textbf{"
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << "}"
 
   of mdsItalic: 
     << "\\textit{"
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << "}"
 
   of mdsHighlight: 
     << "\\hl{"
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << "}"
 
   of mdsComment:
     << "\\begin{small}"
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << "\\end{small}"
 
@@ -343,7 +344,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << "}\n"
     << "\\caption{"
     for i, sub in n.children:
-      if i != 0: << ' '
+      if i != 0 and n.children[i-1].piggyback != true: << ' '
       toTex sub, settings, result
     << "}\n"
     << "\\end{figure}"
@@ -376,7 +377,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     if n.children.len > 0:
       << "{"
       for i, sub in n.children:
-        if i != 0: << ' '
+        if i != 0 and n.children[i-1].piggyback != true: << ' '
         toTex sub, settings, result
       << "}"
 
@@ -896,18 +897,18 @@ func parseMdSpans*(content; slice): seq[MdNode] =
             again = false
             for i in cur:
               if content[i] == '\\':
-                if content[i+1] == '\\':
+                if content.at(i+1) == '\\':
                   acc.add MdNode(kind: k, slice: cur.a .. i)
                   cur = i+2 .. cur.b
 
                 else:
-                  acc.add MdNode(kind: k, slice: cur.a ..< i)
+                  # to prevent putting space after escape e.g. price_tag_dollar
+                  acc.add MdNode(kind: k, slice: cur.a ..< i, piggyback: true)
                   cur = i+1 .. cur.b
 
                 again = true
                 break
           
-
           acc.add MdNode(kind: k, slice: cur)
 
         break
@@ -1076,6 +1077,7 @@ func attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
     discard
   
   root
+
 
 # TODO auto link finder (convert normal text -> link) via \url
 # TODO simpler span parser
