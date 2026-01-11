@@ -672,11 +672,11 @@ func afterBlock*(content; cursor; kind: MdNodeKind): int =
 
 func onlyContent*(content; slice; kind: MdNodeKind): Slice[int] = 
   case kind
-  of mdbMath:      stripSlice(content, slice, {'$'} + Whitespace)
-  of mdbCode:      stripSlice(content, slice, {'`'})
-  of mdbHeader:    stripSlice(content, slice, {'#'} + Whitespace)
-  of mdbQuote:     stripSlice(content, slice, {'>'} + Whitespace)
-  of mdbPar:       stripSlice(content, slice, Whitespace)
+  of mdbCode:      stripSlice(content, slice, {'`'}                       )
+  of mdbMath:      stripSlice(content, slice, {'$'}           + Whitespace)
+  of mdbHeader:    stripSlice(content, slice, {'#'}           + Whitespace)
+  of mdbQuote:     stripSlice(content, slice, {'>'}           + Whitespace)
+  of mdbPar:       stripSlice(content, slice,                   Whitespace)
   of mdWikiEmbed:  stripSlice(content, slice, {'!', '[', ']'} + Whitespace)
   else: slice
 
