@@ -99,6 +99,11 @@ const MdLeafNodes* = {mdsText,
                       mdsEmbed, mdWikiEmbed, mdsWikilink, 
                       mdbMath, mdbCode}
 
+# ----- Syntax Sugar -------------------------------
+
+template TODO: untyped =
+  raise newException(ValueError, "TODO")
+
 # ----- General Utils ------------------------------
 
 func isUnicode(ch: char): bool = 
@@ -171,7 +176,8 @@ func toXml*(n: MdNode, result: var string) =
   of MdLeafNodes: result.add n.content
   else          : discard
 
-  for sub in n.children:
+  for i, sub in n.children:
+    if i != 0: result.add ' '
     toXml sub, result
 
   result.add "</"
@@ -186,7 +192,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
   case n.kind
 
   of mdWrap:
-    for sub in n.children:
+    for i, sub in n.children:
       toTex sub, settings, result
       result.add "\n\n"
   
@@ -201,18 +207,16 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     result.add '\\'
     result.add tag
     result.add '{'
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add '}'
 
   of mdbPar:
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
-  
-  # TODO auto link finder (convert normal text -> link) via \url
-  # mdsURL
 
-  # TODO
   of mdsDir: 
     # \usepackage{bidi}
     # \lr : ltr 
@@ -220,12 +224,14 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
 
     if n.dir == mddLtr:
       result.add "\\lr{"
-    for sub in n.children:
+
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
   
     if n.dir == mddLtr:
       result.add '}'
-
+ 
   of mdsCode: 
     result.add "\\texttt{"
     result.add n.content
@@ -247,36 +253,37 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     result.add "\n\\end{verbatim}"
 
   of mdsBoldItalic: 
-    # let repl = MdNode(kind: mdsBold, 
-    #                  children: @[MdNode(kind: mdsItalic, 
-    #                                     children: n.children)])
-    # toTex repl, result
     result.add "\\verb{"
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add "}"
 
   of mdsBold: 
     result.add "\\textbf{"
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add "}"
 
   of mdsItalic: 
     result.add "\\textit{"
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add "}"
 
   of mdsHighlight: 
     result.add "\\hl{"
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add "}"
 
   of mdsComment:
     result.add "\\begin{small}"
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add "\\end{small}"
 
@@ -304,14 +311,14 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     result.add n.content
     result.add "}\n"
     result.add "\\caption{"
-    for sub in n.children:
+    for i, sub in n.children:
+      if i != 0: result.add ' '
       toTex sub, settings, result
     result.add "}\n"
     result.add "\\end{figure}"
 
   of mdsEmbed:
-    # TODO
-    discard
+    TODO
 
   of mdFrontMatter:
     discard
@@ -323,7 +330,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     result.add "\\begin{"
     result.add tag
     result.add "}"
-    for sub in n.children:
+    for i, sub in n.children:
       result.add "\n\\item "
       toTex sub, settings, result
     result.add "\n\\end{"
@@ -337,13 +344,13 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
 
     if n.children.len > 0:
       result.add "{"
-      for sub in n.children:
+      for i, sub in n.children:
+        if i != 0: result.add ' '
         toTex sub, settings, result
       result.add "}"
 
   of mdbQuote:
-    # TODO
-    discard
+    TODO
 
   of mdbTable:
     raise newException(ValueError, fmt"toTex for kind {n.kind} is not implemented")
@@ -650,6 +657,12 @@ proc detectLang(content: string, area: Slice[int]): MdDir =
   return mddUndecided
 
 
+func empty(z: seq): bool = 
+  z.len == 0
+
+func filled(z: seq): bool = 
+  not empty z
+
 proc wordSlices(content: string, area: Slice[int]): seq[Slice[int]] =
   var changes: seq[int]
   var l = true # last was whitespace?
@@ -660,15 +673,8 @@ proc wordSlices(content: string, area: Slice[int]): seq[Slice[int]] =
       changes.add i
     l = w
 
-  if 1 <= changes.len: # include_last_word_or_last_whitespace
-    if l:
-      changes.add changes[^1]+1
-    
-    var t = area.b
-    while t in area and content[t] in {'\n','\r'}:
-      dec t
-    
-    changes.add t+1
+  if changes.filled and not l:
+    changes.add area.b+1
 
   for i in countup(1, changes.high, 2):
     let head = changes[i-1]
@@ -697,8 +703,9 @@ proc separateLangs(content: string, area: Slice[int]): seq[MdNode] =
     langsMelt = meltSeq langs
 
   for lm in langsMelt:
-    let n = MdNode(kind: mdsDir, dir: langs[lm.a], slice: ws[lm.a].a .. ws[lm.b].b)
-    result.add n
+    result.add MdNode(kind:  mdsDir,
+                      dir:   langs[lm.a], 
+                      slice: ws[lm.a].a .. ws[lm.b].b)
 
 proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] = 
   var acc: seq[MdNode]
@@ -706,12 +713,12 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
 
   for k in [
     # sorted by priority
+    mdsWikilink,
+    mdsEmbed,
     mdsLink,
     mdsCode,
     mdsMath,
     mdWikiEmbed,
-    mdsWikilink,
-    mdsEmbed,
     mdsBoldItalic,
     mdsBold,
     mdsItalic,
@@ -748,6 +755,7 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
         else: break
 
       of mdsHighlight:
+        # TODO add 🟠 🟢 🟣
         let v = matchPairInside("==", "==")
         if issome v: acc.add MdNode(kind: k, slice: v.get)
         else: break
@@ -788,13 +796,22 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
         else:
           break
 
-      # of mdsEmbed:
-      #   let r = scrabbleMatchDeepMulti(content, indexes, @["![", "](", ")"])
-      #   if isSome r:
-      #     let bounds = r.get
-      #     let span = bounds[0].b+1 .. bounds[1].a-1
-      #   else:
-      #     break
+      of mdsEmbed:
+        let r = scrabbleMatchDeepMulti(content, indexes, @["![", "](", ")"])
+        if isSome r:
+          let bounds = r.get
+          let area1  = bounds[0].b+1 .. bounds[1].a-1
+          let area2  = bounds[1].b+1 .. bounds[2].a-1
+          let link   = content[area2].strip 
+
+          acc.add MdNode(kind: k, content: link, slice: area1)
+
+          for ni in indexes.nodes:
+            for a in [bounds[0], bounds[1], bounds[2], area2]:
+              if ni.value.intersects a:
+                indexes.subtract ni, a
+        else:
+          break
 
       of mdsLink:
         let r = scrabbleMatchDeepMulti(content, indexes, @["[", "](", ")"])
@@ -831,21 +848,13 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
           newIndexes: seq[Slice[int]]
         
         for area in indexes:
-          let phrases = separateLangs(content, area)
+          let     phrases      = separateLangs(content, area)
+          if      phrases.len == 0: continue
           acc.add phrases
-
-          if phrases.len == 0: continue
          
-          # --------------
-
-          var j = area.a
+          # echo phrases.mapit content[it.slice]
 
           for ph in phrases:
-            let s = j ..< ph.slice.a
-            if 1 <= len s:
-              newIndexes.add s
-            
-            j = ph.slice.b+1
             newIndexes.add ph.slice
 
         indexes = toDoublyLinkedList newIndexes
@@ -865,11 +874,11 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
             for i in cur:
               if content[i] == '\\':
                 if content[i+1] == '\\':
-                  acc.add MdNode(kind: k, slice: cur.a .. i )
+                  acc.add MdNode(kind: k, slice: cur.a .. i)
                   cur = i+2 .. cur.b
 
                 else:
-                  acc.add MdNode(kind: k, slice: cur.a ..< i )
+                  acc.add MdNode(kind: k, slice: cur.a ..< i)
                   cur = i+1 .. cur.b
 
                 again = true
@@ -890,8 +899,8 @@ proc parseMdSpans*(content: string, slice: Slice[int]): seq[MdNode] =
 
   acc.sort cmpFirst
 
-  var root = MdNode(kind: mdWrap, slice: slice)
-  var stack: seq[MdNode] = @[root]
+  var root  = MdNode(kind: mdWrap, slice: slice)
+  var stack = @[root]
 
   for node in acc:
     # TODO do not copy
@@ -998,8 +1007,7 @@ proc parseMdBlock*(content: string, slice: Slice[int], kind: MdNodeKind): MdNode
     b
 
   of mdsEmbed:
-    # TODO
-    MdNode(kind: kind)
+    TODO 
 
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
@@ -1048,4 +1056,6 @@ proc attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
   
   root
 
-# TODO links
+# TODO escape _ in latex
+# TODO fix word
+# TODO auto link finder (convert normal text -> link) via \url
