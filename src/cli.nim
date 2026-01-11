@@ -29,8 +29,9 @@ when isMainModule:
   else:
     quit """
       USAGE:
-         app DIR path/to/file.md path/to/file.tex
+         app DIR path/to/file.md path/to/file.EXT
 
       WHERE:
-        DIR: can be `ltr` or `rtl`
+        EXT can be `tex` or `xml`
+        DIR can be `ltr` or `rtl`
     """
