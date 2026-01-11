@@ -105,8 +105,11 @@ using
   content: string
   slice  : Slice[int]
 
-template TODO: untyped =
-  raise newException(ValueError, "TODO")
+# template TODO: untyped =
+#   raise newException(ValueError, "TODO")
+
+template `<<`(smth): untyped {.dirty.} =
+  result.add smth
 
 # ----- General Utils ------------------------------
 
@@ -177,21 +180,21 @@ func contains*(n, m: Slice[int]): bool =
 # ----- Convertors ---------------------------------
 
 func toXml*(n: MdNode, result: var string) = 
-  result.add "<"
-  result.add $n.kind
-  result.add ">"
+  << "<"
+  << $n.kind
+  << ">"
 
   case n.kind
-  of MdLeafNodes: result.add n.content
+  of MdLeafNodes: << n.content
   else          : discard
 
   for i, sub in n.children:
-    if i != 0: result.add ' '
+    if i != 0: << ' '
     toXml sub, result
 
-  result.add "</"
-  result.add $n.kind
-  result.add ">"
+  << "</"
+  << $n.kind
+  << ">"
 
 func toXml*(n: MdNode): string = 
   toXml n, result
@@ -204,7 +207,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
   of mdWrap:
     for i, sub in n.children:
       toTex sub, settings, result
-      result.add "\n\n"
+      << "\n\n"
   
   of mdbHeader:
     let tag = 
@@ -214,17 +217,17 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
       of 3: "subsubsection"
       else: "par"
 
-    result.add '\\'
-    result.add tag
-    result.add '{'
+    << '\\'
+    << tag
+    << '{'
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add '}'
+    << '}'
 
   of mdbPar:
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
 
   of mdsDir: 
@@ -233,75 +236,75 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     # \rl : rtl
 
     if n.dir == mddLtr:
-      result.add "\\lr{"
+      << "\\lr{"
 
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
   
     if n.dir == mddLtr:
-      result.add '}'
+      << '}'
  
   of mdsCode: 
-    result.add "\\texttt{"
-    result.add n.content
-    result.add '}'
+    << "\\texttt{"
+    << n.content
+    << '}'
 
   of mdsMath: 
-    result.add "\\("
-    result.add n.content
-    result.add "\\)"
+    << "\\("
+    << n.content
+    << "\\)"
 
   of mdbMath: 
-    result.add "\\[\n"
-    result.add n.content
-    result.add "\n\\]"
+    << "\\[\n"
+    << n.content
+    << "\n\\]"
 
   of mdbCode:
-    result.add "\\begin{verbatim}\n"
-    result.add n.content
-    result.add "\n\\end{verbatim}"
+    << "\\begin{verbatim}\n"
+    << n.content
+    << "\n\\end{verbatim}"
 
   of mdsBoldItalic: 
-    result.add "\\verb{"
+    << "\\verb{"
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add "}"
+    << "}"
 
   of mdsBold: 
-    result.add "\\textbf{"
+    << "\\textbf{"
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add "}"
+    << "}"
 
   of mdsItalic: 
-    result.add "\\textit{"
+    << "\\textit{"
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add "}"
+    << "}"
 
   of mdsHighlight: 
-    result.add "\\hl{"
+    << "\\hl{"
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add "}"
+    << "}"
 
   of mdsComment:
-    result.add "\\begin{small}"
+    << "\\begin{small}"
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add "\\end{small}"
+    << "\\end{small}"
 
   of mdsText: 
-    result.add n.content
+    << n.content
 
   of mdHLine: 
-    result.add "\\clearpage"
+    << "\\clearpage"
 
   of mdsWikilink: 
     toTex MdNode(kind: mdsItalic, children: @[MdNode(kind: mdbPar, children: @[
@@ -309,26 +312,26 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     ])]), settings, result
 
   of mdWikiEmbed:
-    result.add "\\begin{figure}[H]\n"
-    result.add "\\centering\n"
-    result.add "\\includegraphics["
+    << "\\begin{figure}[H]\n"
+    << "\\centering\n"
+    << "\\includegraphics["
     if isSome n.size: 
       let size = (n.size.get / settings.pageWidth) * (15)
-      result.add "width="
-      result.add formatFloat(size, precision=3)
-      result.add "cm,"
-    result.add "keepaspectratio]{"
-    result.add n.content
-    result.add "}\n"
-    result.add "\\caption{"
+      << "width="
+      << formatFloat(size, precision=3)
+      << "cm,"
+    << "keepaspectratio]{"
+    << n.content
+    << "}\n"
+    << "\\caption{"
     for i, sub in n.children:
-      if i != 0: result.add ' '
+      if i != 0: << ' '
       toTex sub, settings, result
-    result.add "}\n"
-    result.add "\\end{figure}"
+    << "}\n"
+    << "\\end{figure}"
 
-  of mdsEmbed:
-    TODO
+  # of mdsEmbed:
+  #   TODO
 
   of mdFrontMatter:
     discard
@@ -337,32 +340,29 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     let tag = 
       if n.numbered: "enumerate"
       else:          "itemize"
-    result.add "\\begin{"
-    result.add tag
-    result.add "}"
+    << "\\begin{"
+    << tag
+    << "}"
     for i, sub in n.children:
-      result.add "\n\\item "
+      << "\n\\item "
       toTex sub, settings, result
-    result.add "\n\\end{"
-    result.add tag
-    result.add "}"
+    << "\n\\end{"
+    << tag
+    << "}"
 
   of mdsLink:
-    result.add "\\href{"
-    result.add n.content
-    result.add "}"
+    << "\\href{"
+    << n.content
+    << "}"
 
     if n.children.len > 0:
-      result.add "{"
+      << "{"
       for i, sub in n.children:
-        if i != 0: result.add ' '
+        if i != 0: << ' '
         toTex sub, settings, result
-      result.add "}"
+      << "}"
 
-  of mdbQuote:
-    TODO
-
-  of mdbTable:
+  of mdbQuote, mdbTable, mdsEmbed:
     raise newException(ValueError, fmt"toTex for kind {n.kind} is not implemented")
 
 func toTex*(n: MdNode, settings: MdSettings): string = 
@@ -1009,9 +1009,7 @@ proc parseMdBlock*(content; slice; kind: MdNodeKind): MdNode =
 
     b
 
-  of mdsEmbed:
-    TODO 
-
+  # of mdsEmbed:
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
 
