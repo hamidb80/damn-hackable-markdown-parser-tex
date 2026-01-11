@@ -5,7 +5,7 @@ author        = "hamidb80"
 description   = "damn extensible markdown parser + Tex convertor"
 license       = "WTFPL"
 srcDir        = "src"
-
+bin           = @["cli"]
 
 # Dependencies
 
