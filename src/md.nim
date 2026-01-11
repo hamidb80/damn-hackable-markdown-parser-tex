@@ -66,6 +66,7 @@ type
     size:     Option[int]
 
   MdSettings* = object
+    langdir*:   MdDir
     pageWidth*: int
 
 type
@@ -122,10 +123,10 @@ func isUnicode(ch): bool =
   127 < ch.uint
 
 # --- seq
-func empty(z: seq): bool = 
+func empty(z: seq or string): bool = 
   z.len == 0
 
-func filled(z: seq): bool = 
+func filled(z: seq or string): bool = 
   not empty z
 
 # --- string
@@ -242,14 +243,24 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     # \lr : ltr 
     # \rl : rtl
 
-    if n.dir == mddLtr:
-      << "\\lr{"
+    let tag =
+      if n.dir != settings.langdir: 
+        case n.dir
+        of   mddLtr:       "lr"
+        of   mddRtl:       "rl"
+        of   mddUndecided: ""
+      else:  ""
+
+    if filled tag:
+      << '\\'
+      << tag
+      << '{'
 
     for i, sub in n.children:
       if i != 0: << ' '
       toTex sub, settings, result
   
-    if n.dir == mddLtr:
+    if filled tag:
       << '}'
  
   of mdsCode: 
@@ -438,7 +449,7 @@ func p*(str): SimplePattern =
     else:
       inc i 
 
-const listPatterns = [p"- ", p"\+ ", p"* ", p "\\d+. "]
+const listPatterns = [p"- ", p"\+ ", p"* ", p"\d+. "]
 
 func matches*(ch; pt: SimplePatternToken): bool = 
   case pt.kind

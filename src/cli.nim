@@ -1,15 +1,22 @@
-import std/[os]
+import std/[os, strformat]
 import md
 
 
 when isMainModule:
   case paramCount()
-  of 2:
+  of 3:
     let
-      ipath = paramStr 1
-      opath = paramStr 2
+      textdirection = 
+        block:
+          let d = paramStr(1)
+          case d
+          of "ltr": mddLtr
+          of "rtl": mddRtl
+          else    : raise newException(ValueError, fmt"invalid '{d}' direction, direction can only be `ltr` or `rtl`")
+      ipath = paramStr 2
+      opath = paramStr 3
       (_,_, oext) = splitFile opath
-      settings    = MdSettings(pagewidth: 1000)
+      settings    = MdSettings(pagewidth: 1000, langdir: textdirection)
       md          = attachNextCommentOfFigAsDesc parseMarkdown readFile ipath
     
     case oext
@@ -23,5 +30,8 @@ when isMainModule:
   else:
     quit """
       USAGE:
-         app path/to/file.md path/to/file.tex
+         app DIR path/to/file.md path/to/file.tex
+
+      WHERE:
+        DIR: can be `ltr` or `rtl`
     """
