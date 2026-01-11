@@ -104,6 +104,10 @@ const MdLeafNodes* = {mdsText,
 using 
   content: string
   slice  : Slice[int]
+  str    : string
+  ch     : char
+  chars  : set[char]
+  cursor : int
 
 # template TODO: untyped =
 #   raise newException(ValueError, "TODO")
@@ -114,7 +118,7 @@ template `<<`(smth): untyped {.dirty.} =
 # ----- General Utils ------------------------------
 
 # --- char
-func isUnicode(ch: char): bool = 
+func isUnicode(ch): bool = 
   127 < ch.uint
 
 # --- seq
@@ -402,24 +406,26 @@ func subtract*(ns: var DoublyLinkedList[Slice[int]], n: DoublyLinkedNode[Slice[i
 
 # ----- Matching Utils -----------------------------
 
-func p*(pattern: string): SimplePattern = 
+func p*(str): SimplePattern = 
+  ## make pattern
+
   var i = 0
-  while i < pattern.len:
+  while i < str.len:
     
     let lastToken = 
-      case pattern.at(i)
+      case str.at(i)
       of '\\':
         inc i
-        case pattern.at(i)
+        case str.at(i)
         of 's':        SimplePatternToken(kind: sptMeta, meta: spmWhitespace)
         of 'd':        SimplePatternToken(kind: sptMeta, meta: spmDigit)
-        of '\\', '+':  SimplePatternToken(kind: sptChar, ch: pattern[i])
-        else:    raise newException(ValueError, fmt"invalid meta character '{pattern.at(i+1)}'")
+        of '\\', '+':  SimplePatternToken(kind: sptChar, ch: str[i])
+        else:    raise newException(ValueError, fmt"invalid meta character '{str.at(i+1)}'")
       else:     
-          SimplePatternToken(kind: sptChar, ch: pattern[i])
+          SimplePatternToken(kind: sptChar, ch: str[i])
 
     let repeat = 
-      case pattern.at(i+1)
+      case str.at(i+1)
       # of '^':  0 .. 0
       # of '*':  0 .. int.high
       of '+':  1 .. int.high
@@ -434,7 +440,7 @@ func p*(pattern: string): SimplePattern =
 
 const listPatterns = [p"- ", p"\+ ", p"* ", p "\\d+. "]
 
-func matches*(ch: char, pt: SimplePatternToken): bool = 
+func matches*(ch; pt: SimplePatternToken): bool = 
   case pt.kind
   of sptChar: ch == pt.ch
   of sptMeta:
@@ -458,7 +464,7 @@ func find*(content; slice; sub: string): int =
 
   notfound
 
-func skipWhitespaces*(content; cursor: int): int = # : SkipWhitespaceReport = 
+func skipWhitespaces*(content; cursor): int = # : SkipWhitespaceReport = 
   var i = cursor
   while i < content.len:
     if content[i] in Whitespace:
@@ -467,7 +473,7 @@ func skipWhitespaces*(content; cursor: int): int = # : SkipWhitespaceReport =
       break
   i
 
-func startsWith*(str: string, cursor: int, pattern: SimplePattern): int = 
+func startsWith*(str; cursor; pattern: SimplePattern): int = 
   if str.high < cursor: return notfound
 
   var 
@@ -499,7 +505,7 @@ func startsWith*(str: string, cursor: int, pattern: SimplePattern): int =
   
   i
 
-func skipBefore*(content; cursor: int, pattern: SimplePattern): int = 
+func skipBefore*(content; cursor; pattern: SimplePattern): int = 
   var i  = cursor
   
   while i < content.len:
@@ -508,7 +514,7 @@ func skipBefore*(content; cursor: int, pattern: SimplePattern): int =
   
   raise newException(ValueError, "cannot match end of " & $pattern)
 
-func stripSlice*(content; slice; chars: set[char]): Slice[int] = 
+func stripSlice*(content; slice; chars): Slice[int] = 
   var i = slice.a
   var j = slice.b
 
@@ -517,17 +523,17 @@ func stripSlice*(content; slice; chars: set[char]): Slice[int] =
   
   i .. j
 
-func skipChars*(content; slice; chars: set[char]): int = 
+func skipChars*(content; slice; chars): int = 
   var i = slice.a
   while i in slice:
     if content[i] notin chars: break
     inc i
   i # or at the end of file
 
-func skipChar*(content; slice; ch: char): int = 
+func skipChar*(content; slice; ch): int = 
   skipChars(content, slice, {ch})
 
-func skipNotChar*(content; slice; ch: char): int = 
+func skipNotChar*(content; slice; ch): int = 
   var i = slice.a
   while i in slice:
     if content[i] == ch: break
@@ -584,7 +590,7 @@ func scrabbleMatchDeepMulti*(content; indexes: var DoublyLinkedList[Slice[int]],
 
 # ----- Main Functionalities ---------------------
 
-func detectBlockKind*(content; cursor: int): MdNodeKind = 
+func detectBlockKind*(content; cursor): MdNodeKind = 
   if   startsWith(content, cursor, p"```")   != notfound: mdbCode
   elif startsWith(content, cursor, p"$$\s")  != notfound: mdbMath
   elif startsWith(content, cursor, p"> ")    != notfound: mdbQuote
@@ -614,7 +620,7 @@ func skipAfterParagraphSep*(content; slice; kind: MdNodeKind): int =
   
   i
 
-func afterBlock*(content; cursor: int, kind: MdNodeKind): int = 
+func afterBlock*(content; cursor; kind: MdNodeKind): int = 
   case kind
   of mdbHeader: skipAtNextLine(content, cursor .. content.high)
   of mdHLine:   skipAtNextLine(content, cursor .. content.high)
@@ -1016,7 +1022,7 @@ func parseMdBlock*(content; slice; kind: MdNodeKind): MdNode =
   else: 
     raise newException(ValueError, fmt"invalid block type '{kind}'")
 
-func parseMarkdown*(content: string): MdNode = 
+func parseMarkdown*(content): MdNode = 
   result = MdNode(kind: mdWrap)
 
   var cursor = 0
