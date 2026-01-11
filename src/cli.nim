@@ -22,4 +22,4 @@ when isMainModule:
     of ".xml":
       writeFile opath, toXml md
     else:
-      quit "only `.tex` and `.xml` output file extension is supported"
+      quit "only `.tex` and `.xml` output file extensions are supported"
