@@ -64,7 +64,6 @@ type
     lang:      string # for code
     href:      string # for link
     size:      Option[int]
-    # piggyback: bool 
 
   MdSettings* = object
     langdir*:   MdDir
