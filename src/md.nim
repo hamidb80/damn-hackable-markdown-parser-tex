@@ -740,7 +740,7 @@ func parseMdSpans*(content; slice): seq[MdNode] =
     # sorted by priority
     mdsWikilink,
     mdsEmbed,
-    mdsLink,
+    mdsLink, # XXX compound of [] + ()
     mdsCode,
     mdsMath,
     mdWikiEmbed,
