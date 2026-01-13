@@ -208,7 +208,12 @@ func toXml*(n: MdNode): string =
   toXml n, result
 
 
-# TODO escape _, \, ... in latex {leaf nodes}
+func writeEscapedTex(content; result: var string) = 
+  for ch in content:
+    if ch in {'\\', '_', '^'}:
+      << '\\'
+    << ch
+
 func toTex*(n: MdNode, settings: MdSettings, result: var string) = 
   case n.kind
 
@@ -318,7 +323,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << "\\end{small}"
 
   of mdsText: 
-    << n.content
+    writeEscapedTex n.content, result
 
   of mdHLine: 
     << "\\clearpage"
