@@ -1080,6 +1080,6 @@ func attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
 
 
 # TODO auto link finder (convert normal text -> link) via \url
-# TODO simpler span parser
+# TODO simpler span parser (currently it does not capture ** _hello_ world**)
 # TODO add table parser
 # TODO add footnote
