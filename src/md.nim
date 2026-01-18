@@ -1079,6 +1079,8 @@ func attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
   root
 
 
+# XXX add mdline which mdbPar must have
+
 # TODO auto link finder (convert normal text -> link) via \url
 # TODO simpler span parser (currently it does not capture ** _hello_ world**)
 # TODO add table parser
