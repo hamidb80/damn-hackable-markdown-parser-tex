@@ -393,7 +393,8 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     # \rl : rtl
 
     let tag =
-      if n.dir != settings.langdir: 
+      if settings.langdir == mddUndecided: ""
+      elif n.dir != settings.langdir: 
         case n.dir
         of   mddLtr:       "lr"
         of   mddRtl:       "rl"

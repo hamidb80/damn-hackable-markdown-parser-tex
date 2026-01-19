@@ -10,17 +10,15 @@
 
 
 we're in 2025, age of AI, 
-and still there is not a single simple markdown *extensible* 
-markdown parser without quirks 
-in Python or JS.
+and still there is not a single simple markdown parser that you can extend 
+without quirks in Python or JS.
 
-I hate these *noobie* developers that 
-would say "this requires major blah blah" 
-for *every single issue* instead of actually doing
-the **right work**. 
+I hate these *noobie* developers that would say 
+"this requires major blah blah" for *every single issue* instead of 
+actually doing the **right work**. 
 
 There are some other markdown parser libraries in other programming langugages
-that have a _huge code-base_, and they implement extensibility better. 
+that have _huge code-base_, and they implement extensibility better. 
 But I don't understand the force for making such a _small_ functionality (single parser) 
 a separate **project**, and put lots of effort/design patterns into it. 
 just write a simple and normal code and let anyone customize it.
@@ -42,6 +40,36 @@ you don't need 50+ classes and 10+ interfaces or 5+ dependencies to parse a mark
 you just need to know how to program, 
 do not over-complicate everything.
 > "this requires major blah blah"
+
+## Features
+
+### Parser
+
+the parser detects language changes and stores texts inside a `dir` node.
+it is specially useful for rtl languages like Arabic. the behaviour can be disabled.
+
+#### inline elements
+- bold `**`
+- italic `_`
+- inline code `\``
+- inline math `$`
+- comment `// ...`
+- wiki links `[[...]]`
+- links `[...]()`
+- embeds `![...]()`
+
+#### blocks
+- paragraph
+- code block triple `\``
+- math block `$$`
+- lists (numberical and `+` `-` `*`)
+- wiki embeds `![[...]]`
+
+
+## TODO
+- [ ] nested blocks (like lists)
+- [ ] indentations
+- [ ] table
 
 
 ## Usage
