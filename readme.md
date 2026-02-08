@@ -70,6 +70,7 @@ it is specially useful for rtl languages like Arabic. the behaviour can be disab
 - [ ] nested blocks (like lists)
 - [ ] indentations
 - [ ] table
+- [ ] enumerated list by alphabet (a. b. c. etc)
 
 
 ## Usage

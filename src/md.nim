@@ -1121,3 +1121,4 @@ func attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
 # TODO auto link finder (convert normal text -> link) via \url
 # TODO add table parser
 # TODO add footnote
+# TODO support enumerated list in form of a. b. c. ...
