@@ -56,6 +56,7 @@ type
     mddRtl
     mddLtr
 
+  # maybe I apply object oriented probramming?
   MdNode* = ref object
     # common
     kind:     MdNodeKind
