@@ -38,3 +38,11 @@ suite "Functionality":
   test "getWikiPath":
     check "content/linear algebra/SVD" == getWikiPath " content/linear algebra/SVD "
     check "assets/image.png" == getWikiPath " assets/image.png |400"
+
+
+suite "Tex":
+
+  test "writeEscapedTex":
+    var str = ""
+    writeEscapedTex r"you^re 50% of _me :-\\", str
+    check str ==    r"you\^re 50\% of \_me :-\\\\"

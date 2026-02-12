@@ -332,7 +332,7 @@ func toXml*(n: MdNode): string =
   toXml n, result
 
 
-func writeEscapedTex(content; result: var string) = 
+func writeEscapedTex*(content; result: var string) = 
   for ch in content:
     if ch in {'\\', '_', '^', '%'}:
       << '\\'
@@ -596,7 +596,7 @@ func find*(content; slice; str): int =
 
   notfound
 
-func skipWhitespaces*(content; cursor): int = # : SkipWhitespaceReport = 
+func skipWhitespaces*(content; cursor): int =
   var i = cursor
   while i < content.len:
     if content[i] in Whitespace:
