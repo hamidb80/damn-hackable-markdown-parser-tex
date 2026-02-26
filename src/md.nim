@@ -399,7 +399,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
  
   of mdsCode: 
     << "\\texttt{"
-    << n.content
+    writeEscapedTex n.content, result
     << '}'
 
   of mdsMath: 
@@ -1100,3 +1100,4 @@ func attachNextCommentOfFigAsDesc*(root: sink MdNode): MdNode =
 # TODO add table parser
 # TODO add footnote
 # TODO support enumerated list in form of a. b. c. ...
+# FIXME support for link inside parens ([label](url))
