@@ -153,18 +153,18 @@ with help of them, you can detect states like
 
 ### 208-231 some more Accelerometers
 
-![[wide-view-room-opportunity-dataset.png| 800]]
+![[wide-view-room-opportunity-dataset.png | 800]]
 // map of room in which dataset is recorded
 
 the acceleration of these objects are recorded:
-1. DOOR1
-2. LAZYCHAIR
-3. DOOR2
-4. DISHWASHER
-5. UPPERDRAWER
-6. LOWERDRAWER
-7. MIDDLEDRAWER
-8. FRIDGE
+1) DOOR1
+2) LAZYCHAIR
+3) DOOR2
+4) DISHWASHER
+5) UPPERDRAWER
+6) LOWERDRAWER
+7) MIDDLEDRAWER
+8) FRIDGE
 
 ### 232-243 location tags
  
