@@ -29,11 +29,11 @@ suite "Functionality":
     check "singular value decomposition" == getWikiLabel "linear algebra/SVD | singular value decomposition"
 
   test "getWikiEmbedSize":
-    check some(400) == getWikiEmbedSize "assets/image.png| 400"
-    check some(400) == getWikiEmbedSize "assets/image.png | 400"
-    check some(400) == getWikiEmbedSize " assets/image.png |400"
-    check none(int) == getWikiEmbedSize "assets/image.png"
-    check none(int) == getWikiEmbedSize "image.png"
+    check 400 == getWikiEmbedSize "assets/image.png| 400"
+    check 400 == getWikiEmbedSize "assets/image.png | 400"
+    check 400 == getWikiEmbedSize " assets/image.png |400"
+    check   0 == getWikiEmbedSize "assets/image.png"
+    check   0 == getWikiEmbedSize "image.png"
 
   test "getWikiPath":
     check "content/linear algebra/SVD" == getWikiPath " content/linear algebra/SVD "

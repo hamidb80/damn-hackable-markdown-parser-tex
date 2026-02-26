@@ -303,11 +303,11 @@ func getWikiLabel*(inner: string): string =
 func getWikiPath*(inner: string): string = 
   inner.split('|', 1)[0].strip
 
-func getWikiEmbedSize*(inner: string): Option[int] = 
+func getWikiEmbedSize*(inner: string): int = 
   let parts = inner.split('|', 1)
   case parts.len
-  of 1: none int
-  else: some parts[1].strip.parseInt
+  of 1: 0
+  else: parts[1].strip.parseInt
 
 # ----- Convertors ---------------------------------
 
@@ -469,13 +469,13 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << "\\centering\n"
     << "\\includegraphics["
     let s = n.content.getWikiEmbedSize
-    if isSome s: 
-      let size = (s.get / settings.pageWidth) * (15)
+    if s != 0: 
+      let size = (s / settings.pageWidth) * (15)
       << "width="
       << formatFloat(size, precision=3)
       << "cm,"
     << "keepaspectratio]{"
-    << n.content
+    << n.content.getWikiPath
     << "}\n"
     << "\\caption{"
     for i, sub in n.children:

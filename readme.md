@@ -71,7 +71,7 @@ it is specially useful for rtl languages like Arabic. the behaviour can be disab
 - [ ] enumerated list by alphabet (a. b. c. etc)
 - [ ] enumerated list by `n)`
 - [ ] indentations and nested blocks (like lists)
-
+- [ ] support for `*` as italic and `__` as bold
 
 ## Usage
 
