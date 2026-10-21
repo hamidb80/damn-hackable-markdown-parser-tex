@@ -51,7 +51,7 @@ type
     mdsWikilink ## [[ ... ]]
     mdsFootNote ## (( ... ))
     mdsCite ## {{ ... }}
-    mdsLabel ## [[# ... ]]!
+    mdsLabel ## [[# ... !]]
     mdsRef ## [[# ... ]]
     mdsComment ## // ...
     mdWikiEmbed ## like photos, PDFs, etc ![[...]]
@@ -482,7 +482,6 @@ func toJson*(n: MdNode, result: var string) =
 func toJson*(n: MdNode): string = 
   toJson n, result
 
-import std/strutils
 
 func texEsc(s: string): string =
   for (a, b) in [("_", "\\_"), ("&", "\\&"), ("%", "\\%"), ("#", "\\#"), ("$", "\\$")]:
@@ -711,12 +710,19 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << "\\clearpage"
 
   of mdsWikilink:
-    for i, sub in n.children:
-      toTex sub, settings, result
-    << " "
-    << "\\cite{"
-    << n.content[n.content.getWikiPathSlice]
-    << "}"
+    if n.content.startsWith "#":
+      if n.content.endsWith "!":
+        toTex MdNode(kind: mdsLabel, content: n.content[1..^2].strip), settings, result
+      else:
+        toTex MdNode(kind: mdsRef, content: n.content.substr(1).strip), settings, result
+
+    else:
+      for i, sub in n.children:
+        toTex sub, settings, result
+      << " "
+      << "\\cite{"
+      << n.content[n.content.getWikiPathSlice]
+      << "}"
 
   of mdWikiEmbed:
     << "\\begin{figure}[H]\n"
@@ -1135,8 +1141,6 @@ proc parseParMdSpans*(content; slice; mask): seq[MdNode] =
         mds(@["`"], 1, mdsCode), 
         mds(@["$"], 1, mdsMath),
         mds(@["{{", "}}"], 1, mdsCite), 
-        mds(@["[[#", "]]!"], 1, mdsLabel),
-        mds(@["[[#", "]]"], 1, mdsRef), 
         mds(@["[[", "]]"], 1, mdsWikilink), 
         mds(@["((", "))"], 0, mdsFootNote), 
       ],
