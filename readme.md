@@ -76,6 +76,12 @@ it is specially useful for rtl languages like Arabic. the behaviour can be disab
 
 ## Usage
 
+### Compile
 ```sh
 nim c -o:mdf.exe src/cli.nim
+```
+
+### Run
+```sh
+./mdf.exe
 ```
