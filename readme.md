@@ -76,4 +76,6 @@ it is specially useful for rtl languages like Arabic. the behaviour can be disab
 
 ## Usage
 
-run `src/cli.nim`
+```sh
+nim c -o:mdf.exe src/cli.nim
+```

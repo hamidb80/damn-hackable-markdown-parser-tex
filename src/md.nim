@@ -122,7 +122,7 @@ type
 
 const notfound* = -1
 
-const MdLeafNodes* = {mdsText, 
+const MdLeafNodes* = {mdsText, mdsCite,
                       mdsMath, mdsCode, 
                       mdbMath, mdbCode}
 
@@ -630,8 +630,8 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << "\\end{small}"
 
   of mdsCite:
-    << "cite"
-    << n.content
+    << "\\cite{"
+    << n.content.strip
     << "}"
 
   of mdsFootNote:
@@ -1071,9 +1071,9 @@ proc parseParMdSpans*(content; slice; mask): seq[MdNode] =
       @[
         mds(@["`"], 1, mdsCode), 
         mds(@["$"], 1, mdsMath),
+        mds(@["{{", "}}"], 1, mdsCite), 
         mds(@["[[", "]]"], 1, mdsWikilink), 
         mds(@["((", "))"], 0, mdsFootNote), 
-        mds(@["{{", "}}"], 1, mdsCite), 
       ],
 
       @[

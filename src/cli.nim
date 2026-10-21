@@ -80,7 +80,7 @@ when isMainModule:
         case dir.toLowerAscii
         of "ltr":   mddLtr
         of "rtl":   mddRtl
-        of "nodir": mddRtl
+        of "nodir": mddUndecided
         else      : quit fmt"invalid '{dir}' direction, see help"
       
       settings      = MdSettings(pagewidth: pagewidth, langdir: textdirection)
