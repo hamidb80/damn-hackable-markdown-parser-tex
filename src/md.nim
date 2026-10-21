@@ -51,6 +51,8 @@ type
     mdsWikilink ## [[ ... ]]
     mdsFootNote ## (( ... ))
     mdsCite ## {{ ... }}
+    mdsLabel ## [[# ... ]]!
+    mdsRef ## [[# ... ]]
     mdsComment ## // ...
     mdWikiEmbed ## like photos, PDFs, etc ![[...]]
     mdsText ## processed text
@@ -122,7 +124,7 @@ type
 
 const notfound* = -1
 
-const MdLeafNodes* = {mdsText, mdsCite,
+const MdLeafNodes* = {mdsText, mdsCite, mdsRef, mdsLabel,
                       mdsMath, mdsCode, 
                       mdbMath, mdbCode}
 
@@ -375,6 +377,8 @@ func prettyName(k: MdNodeKind): string =
   of mdsWikilink: "wiki-link"
   of mdsFootNote: "footnote"
   of mdsCite: "cite"
+  of mdsLabel: "label"
+  of mdsRef: "reference"
   of mdsComment: "comment"
   of mdWikiEmbed: "wiki-embed"
   of mdsText: "text"
@@ -420,7 +424,7 @@ func toJson*(n: MdNode, result: var string) =
 
   # --- content
   case n.kind
-  of mdWrap, mdChapter, mdbPar, mdsLine, mdbQuote, mdsBoldItalic, mdsBold, mdsItalic, mdsParen, mdsBracket, mdsComment, mdsCite, mdsFootNote, mdHLine, mdsHighlight: 
+  of mdWrap, mdChapter, mdbPar, mdsLine, mdbQuote, mdsBoldItalic, mdsBold, mdsItalic, mdsParen, mdsBracket, mdsComment, mdsCite, mdsLabel, mdsRef, mdsFootNote, mdHLine, mdsHighlight: 
     discard
 
   of mdComment:
@@ -478,6 +482,52 @@ func toJson*(n: MdNode, result: var string) =
 func toJson*(n: MdNode): string = 
   toJson n, result
 
+import std/strutils
+
+func texEsc(s: string): string =
+  for (a, b) in [("_", "\\_"), ("&", "\\&"), ("%", "\\%"), ("#", "\\#"), ("$", "\\$")]:
+    result = result.replace(a, b)
+  if result.len == 0: result = s  # replace on empty string still returns ""
+  result = s
+  for (a, b) in [("\\", "\\textbackslash{}"), ("_", "\\_"), ("&", "\\&"),
+                 ("%", "\\%"), ("#", "\\#"), ("$", "\\$")]:
+    result = result.replace(a, b)
+
+func cell(s: string): (string, bool) =
+  ## returns (rendered, isCentered)
+  if "±" in s:
+    let p = s.split("±")
+    ("$" & texEsc(p[0].strip()) & "\\pm " & texEsc(p[1].strip()) & "$", true)
+  elif s.len > 0 and (s[0].isDigit or s[0] == '-'):
+    (s, true)
+  else:
+    (texEsc(s), false)
+
+func csvToTex*(csv: string, caption = "", label = ""): string =
+  let rows = csv.splitLines.filterIt(it.strip.len > 0).mapIt(it.split(',').mapIt(it.strip))
+  if rows.len < 2: return ""
+
+  let nCols = rows[0].len
+  var centered = newSeq[bool](nCols)
+  for c in 0 ..< nCols:
+    # a column is centered if any data cell is numeric or ±
+    centered[c] = (1 ..< rows.len).anyIt(cell(rows[it][c])[1])
+
+  result = "\\begin{table*}[!htb]\n\\centering\n\\footnotesize\n"
+  result &= "\\begin{tabular}{" & centered.mapIt(if it: "c" else: "l").join(" ") & "}\n"
+  result &= "\\toprule\n"
+  result &= rows[0].mapIt("\\textbf{" & texEsc(it) & "}").join(" & ") & " \\\\\n"
+  result &= "\\midrule\n"
+
+  for r in 1 ..< rows.len:
+    if r > 1 and rows[r][0] != rows[r-1][0]:
+      result &= "\\midrule\n"
+    result &= rows[r].mapIt(cell(it)[0]).join(" & ") & " \\\\\n"
+
+  result &= "\\bottomrule\n\\end{tabular}\n"
+  if caption.len > 0: result &= "\\caption{" & texEsc(caption) & "}\n"
+  if label.len   > 0: result &= "\\label{"   & texEsc(label)   & "}\n"
+  result &= "\\end{table*}\n"
 
 func writeEscapedTex*(content; result: var string) =
     # of '<': ("\\textless ")
@@ -590,9 +640,12 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
     << "\n\\]"
 
   of mdbCode:
-    << "\\begin{verbatim}\n"
-    << n.content
-    << "\n\\end{verbatim}"
+    if n.lang == "csv":
+      << csvToTex n.content.strip
+    else:
+      << "\\begin{verbatim}\n"
+      << n.content
+      << "\n\\end{verbatim}"
 
   of mdsBoldItalic: 
     << "\\verb{"
@@ -631,6 +684,16 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
 
   of mdsCite:
     << "\\cite{"
+    << n.content.strip
+    << "}"
+
+  of mdsLabel:
+    << "\\label{"
+    << n.content.strip
+    << "}"
+
+  of mdsRef:
+    << "\\ref{"
     << n.content.strip
     << "}"
 
@@ -1072,6 +1135,8 @@ proc parseParMdSpans*(content; slice; mask): seq[MdNode] =
         mds(@["`"], 1, mdsCode), 
         mds(@["$"], 1, mdsMath),
         mds(@["{{", "}}"], 1, mdsCite), 
+        mds(@["[[#", "]]!"], 1, mdsLabel),
+        mds(@["[[#", "]]"], 1, mdsRef), 
         mds(@["[[", "]]"], 1, mdsWikilink), 
         mds(@["((", "))"], 0, mdsFootNote), 
       ],
