@@ -386,8 +386,8 @@ func prettyName(k: MdNodeKind): string =
 
 func prettyName(d: MdDir): string = 
   case d
-  of mddLtr: "lrt"
-  of mddRtl: "rtl"
+  of mddLtr: "lr"
+  of mddRtl: "rl"
   of mddUndecided: "undecided"
 
 
@@ -753,6 +753,9 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
       << ' '
       << l
       << '\n'
+
+    << "\\usepackage{float}      % for [H] placement specifier\n"
+    << "\\usepackage{placeins}   % (optional) for \\FloatBarrier if [H] causes overflow\n"
 
   of mdbList:
     let tag = 
