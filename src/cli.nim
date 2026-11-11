@@ -26,6 +26,7 @@ proc convertFile(ipath, opath: string, settings: MdSettings, persian: bool) =
       kind: mdWrap, 
       children: @[
         MdNode(kind: mdComment, content:  fmt"generated from: {ipath}"), 
+        MdNode(kind: mdComment), 
         MdNode(kind: mdChapter, children: parseParMdSpans(ifile)),
       ])
   

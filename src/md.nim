@@ -25,6 +25,7 @@ type
     mdComment
     mdChapter
     mdFrontMatter ## yaml
+    mdReserved
 
     # blocks
     mdbHeader ## ##+ ...
@@ -355,6 +356,7 @@ func prettyName(k: MdNodeKind): string =
   of mdComment: "comment"
   of mdChapter: "chapter"
   of mdFrontMatter: "front-matter"
+  of mdReserved: "reserved"
   of mdbHeader: "header"
   of mdbPar: "paragraph"
   of mdsLine: "line"
@@ -424,7 +426,7 @@ func toJson*(n: MdNode, result: var string) =
 
   # --- content
   case n.kind
-  of mdWrap, mdChapter, mdbPar, mdsLine, mdbQuote, mdsBoldItalic, mdsBold, mdsItalic, mdsParen, mdsBracket, mdsComment, mdsCite, mdsLabel, mdsRef, mdsFootNote, mdHLine, mdsHighlight: 
+  of mdWrap, mdReserved, mdChapter, mdbPar, mdsLine, mdbQuote, mdsBoldItalic, mdsBold, mdsItalic, mdsParen, mdsBracket, mdsComment, mdsCite, mdsLabel, mdsRef, mdsFootNote, mdHLine, mdsHighlight: 
     discard
 
   of mdComment:
@@ -754,6 +756,7 @@ func toTex*(n: MdNode, settings: MdSettings, result: var string) =
       << l
       << '\n'
 
+  of mdReserved:
     << "\\usepackage{float}      % for [H] placement specifier\n"
     << "\\usepackage{placeins}   % (optional) for \\FloatBarrier if [H] causes overflow\n"
 
